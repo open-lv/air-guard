@@ -1,5 +1,7 @@
 # Air Guard 💨
 
+[![Join the chat at https://gitter.im/open-lv/air-guard](https://badges.gitter.im/open-lv/air-guard.svg)](https://gitter.im/open-lv/air-guard)
+
 Air Guard is a do-it-yourself electronics kit for building an **air quality monitor** for your school, home or office.
 
 ![Air Guard components](docs/assets/air-guard-banner.png)
