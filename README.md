@@ -1,6 +1,8 @@
-# Air Pilot 💨
+# Air Guard 💨
 
-Air Pilot is a do-it-yourself electronics kit for building an **air quality monitor** for your school, home or office.
+Air Guard is a do-it-yourself electronics kit for building an **air quality monitor** for your school, home or office.
+
+![Air Guard components](docs/assets/air-guard-banner.png)
 
 
 ## Credits
