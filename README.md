@@ -6,6 +6,19 @@ Air Guard is a do-it-yourself electronics kit for building an **air quality moni
 
 ![Air Guard components](docs/assets/air-guard-banner.png)
 
+## Design Goals
+
+- Create a kit of electronics components, instructions and tools for kids (and anyone really) to create their own air quality monitors for classrooms and other living spaces.
+
+- Use existing electronics modules for all components to ensure the parts are available and affordable.
+
+- Build on the experience of other electronics platforms such as [micro:bit](https://microbit.org), [M5Stack](https://m5stack.com), [MicroPython](https://micropython.org), [ESPHome](https://esphome.io) which provide user-friendly tools and concepts for exploring the hardware and software features.
+
+- Allow space for customization and creative expression to encourage use and ownership of the devices.
+
+- Let users experience quick wins early to encourage continued exploration.
+
+- Design for groups of people building the kit and splitting responsibilities.
 
 ## Contribute
 
