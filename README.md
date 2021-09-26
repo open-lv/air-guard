@@ -6,9 +6,11 @@ Air Guard is a do-it-yourself electronics kit for building an **air quality moni
 
 ![Air Guard components](docs/assets/air-guard-banner.png)
 
-## Design Goals
+## Project Goals
 
-- Create a kit of electronics components, instructions and tools for kids (and anyone really) to create their own air quality monitors for classrooms and other living spaces.
+Create a kit of electronics components, software tools and instructions for kids (and anyone) to create air quality monitors for their living spaces using affordable and readily available components and friendly programming tools.
+
+## Design Goals
 
 - Use existing electronics modules for all components to ensure the parts are available and affordable.
 
