@@ -22,6 +22,15 @@ Create a kit of electronics components, software tools and instructions for kids
 
 - Design for groups of people building the kit and splitting responsibilities.
 
+## Technical Design
+
+- Rely on permanent power supply over USB to avoid limiting the available sensor components (due to their power consumption) and to encourage creative expression in software through the use of LEDs, buzzers and displays. See [issue #4](https://github.com/open-lv/air-guard/issues/4) for the discussion around energy usage.
+
+- Use [MicroPython](https://micropython.org) as the software platform due to the available tooling and accessible programming environments. See [issue #6](https://github.com/open-lv/air-guard/issues/6) for discussion.
+
+- Use ESP32 based microcontrollers due to extensive support for MicroPython and the selected sensor components, and affordable development kits. See [issue #7](https://github.com/open-lv/air-guard/issues/7) for the suggested bill of materials.
+
+
 ## Contribute
 
 Join our [chat on Gitter](https://gitter.im/open-lv/air-guard) to discuss ways to contribute. Issues and pull requests are always welcome!
