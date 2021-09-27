@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name esp32_devkitc)(type Legacy)(uri ${KIPRJMOD}/libs/esp32_devkitc.lib)(options "")(descr ""))
+  (lib (name mh_z19b)(type Legacy)(uri ${KIPRJMOD}/libs/mh_z19b.lib)(options "")(descr ""))
+)
