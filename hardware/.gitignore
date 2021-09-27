@@ -1,0 +1,41 @@
+# For PCBs designed using KiCad: http://www.kicad-pcb.org/
+
+# Temporary files
+*.000
+*.sch-bak
+*.bak
+*.bck
+*.kicad_pcb-bak
+*~
+_autosave-*
+_saved_*
+*.tmp
+
+# Netlist files (exported from Eeschema)
+*.net
+
+# Autorouter files (exported from Pcbnew)
+.dsn
+
+# Exported BOM files
+# *.xml
+# *.csv
+Thumbs.db
+#gerbers/ # we might store gerbers in this repo too, let's see
+
+# Archive files
+#*.zip
+#*.rar
+
+# Rendered schematics
+#*.svg
+#*.pdf
+
+# Position files for pick&placing
+#*.pos
+
+#Some useless cache file
+fp-info-cache
+
+# "rescue" backup files
+rescue-backup/
