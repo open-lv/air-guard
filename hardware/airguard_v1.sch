@@ -123,4 +123,63 @@ F 3 "" H 4800 2700 50  0001 C CNN
 	1    4800 2700
 	0    -1   -1   0   
 $EndComp
+$Comp
+L SSD1306-128x64_OLED:SSD1306 U3
+U 1 1 615249EE
+P 2650 2300
+F 0 "U3" H 2928 2404 50  0000 L CNN
+F 1 "SSD1306" H 2928 2313 50  0000 L CNN
+F 2 "footprints:SSD1306" H 2650 2550 50  0001 C CNN
+F 3 "" H 2650 2550 50  0001 C CNN
+	1    2650 2300
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3.3V #PWR?
+U 1 1 615271EB
+P 2600 1950
+F 0 "#PWR?" H 2600 1800 50  0001 C CNN
+F 1 "+3.3V" H 2500 2400 50  0000 L CNN
+F 2 "" H 2600 1950 50  0001 C CNN
+F 3 "" H 2600 1950 50  0001 C CNN
+	1    2600 1950
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 61527846
+P 2500 1950
+F 0 "#PWR?" H 2500 1700 50  0001 C CNN
+F 1 "GND" H 2500 1650 50  0000 C CNN
+F 2 "" H 2500 1950 50  0001 C CNN
+F 3 "" H 2500 1950 50  0001 C CNN
+	1    2500 1950
+	-1   0    0    1   
+$EndComp
+Text GLabel 2700 1950 1    50   Input ~ 0
+SCL
+Text GLabel 2800 1950 1    50   Input ~ 0
+SDA
+Text GLabel 5700 2900 2    50   Input ~ 0
+SCL
+Text GLabel 5700 3200 2    50   Input ~ 0
+SDA
+NoConn ~ 5700 3000
+NoConn ~ 5700 3100
+Text Notes 5750 3050 0    50   ~ 0
+used for CP2102 UART
+Text GLabel 2300 3600 0    50   Input ~ 0
+RXD2
+Text GLabel 2300 3700 0    50   Input ~ 0
+TXD2
+Text GLabel 5700 3700 2    50   Input ~ 0
+TXD2
+Text GLabel 5700 3800 2    50   Input ~ 0
+RXD2
+Text Notes 1500 2750 0    50   ~ 0
+need to check if these displays have an onboard 3.3V regulator already
+Text GLabel 3200 3600 2    50   Input ~ 0
+CAL
+Text GLabel 3950 3500 2    50   Input ~ 0
+CAL
 $EndSCHEMATC
