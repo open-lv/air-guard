@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name gaisa-sargs-side-pcb-2)(type KiCad)(uri ${KIPRJMOD}/gaisa-sargs-side-pcb-2.pretty)(options "")(descr ""))
+)

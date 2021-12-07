@@ -1,0 +1,4 @@
+
+(fp_lib_table
+  (lib (name "zahars-art-1")(type KiCad)(uri "$(KIPRJMOD)/zahars-art-1.pretty")(options "")(descr ""))
+)
