@@ -11,6 +11,7 @@ Create a kit of electronics components, software tools and instructions for kids
 ## Design Goals
 
 - Use existing electronics modules for all components to ensure the parts are available and affordable.
+
 - Build on the experience of other electronics platforms such as [micro:bit](https://microbit.org), [M5Stack](https://m5stack.com), [MicroPython](https://micropython.org), [ESPHome](https://esphome.io) which provide user-friendly tools and concepts for exploring the hardware and software features.
 
 - Allow space for customization and creative expression to encourage use and ownership of the devices.
@@ -34,4 +35,8 @@ Join our [chat on Gitter](https://gitter.im/open-lv/air-guard) to discuss ways t
 
 ## Credits
 
-Created [by contributors](https://github.com/open-lv/air-pilot/graphs/contributors) and licenses under [MIT](https://opensource.org/licenses/MIT).
+Created [by contributors](https://github.com/open-lv/air-pilot/graphs/contributors).
+
+## License
+
+This is an open source project where the [software](software) and [documentation](docs) are licensed under [MIT](LICENSE) while [the hardware](hardware) is licensed under [CC BY-NC-SA 4.0](hardware/LICENSE).
