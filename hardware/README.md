@@ -4,9 +4,6 @@
 
 GAISA SARGS is an open source air quality monitor DIY kit for kids & teenagers.
 
-It consists of 3 boards:
-The main board
-
 Current revision: **02**
 
 Known bugs: **none yet**
