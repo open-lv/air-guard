@@ -46,7 +46,17 @@ void personiba(int ppm, int gaisma){
 
   u8g2.setFont(u8g2_font_logisoso16_tf);
   u8g2.setColorIndex(1);
-  if(ppm <= 400){
+
+  if(ppm == 0){
+      analogWrite(BALSS, 0);
+      digitalWrite(SARKANS, LOW);
+      digitalWrite(DZELTENS, LOW);
+      digitalWrite(ZALS , LOW);
+      u8g2.setCursor(15,62);
+      u8g2.print("Sensors iesilst");
+      digitalWrite(ZALS, HIGH);
+  }
+  if(ppm > 0 && ppm <= 400){
       analogWrite(BALSS, 0);
       digitalWrite(SARKANS, LOW);
       digitalWrite(DZELTENS, LOW);
