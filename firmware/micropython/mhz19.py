@@ -36,7 +36,7 @@ class MHZ19Cmd:
     csum = 0
     for b in self.body[1:8]:
       csum = (csum + b) % 256
-    return 0xff - csum + 1
+    return (0xff - csum + 1) % 256
 
 
   def pack(self):
@@ -55,7 +55,7 @@ class MHZ19Cmd:
     self.csum = resp[8]
     calc_csum = self.calc_checksum(self.body)
     if calc_csum != self.csum:
-        raise MHZ19ChecksumException("Invalid checksum: received 0x%x, expected 0x%x" % (self.csum, calc_csum))
+        raise MHZ19ChecksumException("Invalid checksum: received 0x%x, expected 0x%x (packet: %s)" % (self.csum, calc_csum, ubinascii.hexlify(self.body, " ")))
 
 
 class MHZ19:
