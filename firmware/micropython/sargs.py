@@ -4,7 +4,7 @@ import logging
 import ssd1306
 import network
 from umqtt.simple import MQTTClient
-from utime import sleep
+from utime import sleep, ticks_ms
 from utils import *
 import _thread
 
@@ -31,10 +31,29 @@ class Sargs:
     co2_measurement = None
     user_main_loop_started = False
     
+    wifi_ssid = None
+    wifi_password = None
+    
+    sta_if = network.WLAN(network.STA_IF)
+    ap_if = network.WLAN(network.AP_IF)
+    
     def __init__(self):
         self.pwm_buzzer.duty(0)
         self.log = logging.getLogger("sargs")
-
+        
+        # disable WiFi interfaces
+        self.ap_if.active(False)
+        # disabling interface on startup helps with OSError Internal WiFi error when reconnecting
+        self.sta_if.active(False)
+        
+        # initialize hardware
+        self._init_lcd()
+        self._init_co2_sensor()
+        
+        # initialize configuration from config.py
+        self._init_config()
+        
+    def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
@@ -48,6 +67,7 @@ class Sargs:
                 sleep(0.5)
             sys.exit()
             
+    def _init_co2_sensor(self):
         # I don't have the correct ESP32 module, and the module I'm using has UART2 pins connected to flash memory,
         # so I had to use UART1 -- this code will be removed once I get correct ESP32 module - RV
         from machine import unique_id
@@ -62,6 +82,7 @@ class Sargs:
             try:
                 self.co2_sensor = mhz19.MHZ19(UART(self.co2_sensor_uart, 9600, timeout=1000))
                 mhz_initialized = self.co2_sensor.verify()
+                break
             except mhz19.MHZ19Exception:
                 self.log.debug("re-trying CO2 sensor initialization...")
                 sleep(0.5)
@@ -77,7 +98,18 @@ class Sargs:
                 self.led_yellow.turn_off()
                 sleep(0.5)
             sys.exit()
-                
+            
+    def _init_config(self):
+        
+        # config file can be non-existant
+        try:
+            import config
+            self.wifi_ssid = config.WIFI_SSID
+            self.wifi_password = config.WIFI_PASSWORD
+            self.log.info("config imported")
+        except ImportError:
+            self.log.info("config does not exist, skipping")
+            
     def handle_co2_measurement(self, m):
         self.co2_measurement = m
 
@@ -91,6 +123,13 @@ class Sargs:
         while not self.user_main_loop_started:
             sleep(0.1)
         self.log.info("background thread started")
+        
+        if self.wifi_ssid:
+            self.log.info("enabling WiFi")
+            self.sta_if.active(True)
+            
+        wifi_connection_time = 0
+        wifi_status_logged = False
         while True:
             self.screen.fill(0)
 
@@ -107,7 +146,26 @@ class Sargs:
                 self.screen.text("ATVER LOGU!", 0, 20, 2)
             elif self.led_red.value():
                 self.screen.text("AARGH!", 0, 20, 2)
-
+            
+            # try connecting to WiFi if configured
+            if self.wifi_ssid and not self.sta_if.isconnected() and (ticks_ms() - wifi_connection_time) > 5000:
+                wifi_connection_time = ticks_ms()
+                self.log.info("connecting to WiFi AP: %s" % self.wifi_ssid)
+                self.sta_if.connect(self.wifi_ssid, self.wifi_password)
+            
+            wifi_status_text = "WiFi: "
+            if self.wifi_ssid:
+                if self.sta_if.isconnected():
+                    wifi_status_text += "savienots"
+                    if not wifi_status_logged:
+                        self.log.info("wifi ifconfig: %s" % str(self.sta_if.ifconfig()))
+                        wifi_status_logged = True
+                else:
+                    wifi_status_text += "savienojas"
+            else:
+                wifi_status_text += "nav konf."
+                
+            self.screen.text(wifi_status_text, 0, 30, 2)
             self.screen.show()
             
             # @TODO: initiate calibration based on button

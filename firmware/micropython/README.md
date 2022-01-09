@@ -16,6 +16,12 @@ Startup error conditions
   * Blinking yellow LED: CO2 sensor not responding
 
 
+Configuration
+----------------------
+
+To enable WiFi functionality, copy the config.py.example file to config.py and enter the configuration details in the file.
+
+
 MicroPython version
 -------------------------
 
