@@ -1,1 +1,3 @@
+/firmware/
+/.env
 *.bin
