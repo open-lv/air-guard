@@ -4,15 +4,21 @@
 # set -ex 
 
 # esptool.py is required.
-if ! command -v "esptool.py"; then
-    echo "ERROR: esptool.py not found! See https://docs.espressif.com/projects/esptool/en/latest/esp32/installation.html"
+if [ ! command -v "esptool.py" &> /dev/null ]; then
+    echo "ERROR: esptool.py not found! See https://pypi.org/project/esptool/"
+    exit 1
+fi
+
+# ampy is required.
+if [ ! command -v "ampy" &> /dev/null ]; then
+    echo "ERROR: ampy not found! See https://pypi.org/project/adafruit-ampy/"
     exit 1
 fi
 
 # Expect to have the UART path as the only arg.
-UART_PATH="${1:-$UART_PATH}"
-if [ -z "$UART_PATH" ]; then
-	echo "Specify the path to the UART port (/dev/tty....) as the first argument."
+ESPTOOL_PORT="${1:-$ESPTOOL_PORT}"
+if [ -z "$ESPTOOL_PORT" ]; then
+	echo "Specify configure the ESPTOOL_PORT environment variable to point to the UART port (/dev/tty....)."
 	exit 1
 fi
 
@@ -36,8 +42,10 @@ if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
 fi
 
 # First make sure the flash is empty.
-esptool.py --port "$UART_PATH" erase_flash
+esptool.py erase_flash
 
 # Now flash the MicroPython firmware.
-esptool.py --chip esp32 --port "$UART_PATH" --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
+esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
 
+# Now upload our own firmware.
+ampy --port "$ESPTOOL_PORT" ls
