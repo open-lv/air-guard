@@ -1,0 +1,15 @@
+version: '3.6'
+
+services:
+
+  flash:
+    image: ghcr.io/open-lv/air-guard-flasher:0.0.1
+    build: .
+    volumes:
+      - .:/build
+      - ../../firmware/micropython:/build/firmware
+    command: ./flash.sh
+    devices:
+      - $ESPTOOL_PORT
+    environment:
+      - ESPTOOL_PORT

@@ -1,0 +1,4 @@
+/firmware/
+/.env
+/devices-flashed.txt
+*.bin
