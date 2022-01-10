@@ -1,0 +1,13 @@
+version: '3.6'
+
+services:
+
+  esptool:
+    image: ghcr.io/open-lv/air-guard-flasher:0.0.1
+    build: .
+    volumes:
+      - .:/build
+    command: ./flash.sh ${UART_PATH}
+    privileged: true
+    devices:
+      - ${UART_PATH}
