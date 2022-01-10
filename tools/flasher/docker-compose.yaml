@@ -9,8 +9,7 @@ services:
       - .:/build
       - ../../firmware/micropython:/build/firmware
     command: ./flash.sh
-    environment:
-      - ESPTOOL_PORT
-    privileged: true
     devices:
       - $ESPTOOL_PORT
+    environment:
+      - ESPTOOL_PORT
