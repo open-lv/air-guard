@@ -34,8 +34,13 @@ class Sargs:
     wifi_ssid = None
     wifi_password = None
     
+    # wifi housekeeping variables
+    wifi_connection_time = 0
+    wifi_post_connection_tasks_run = False
     sta_if = network.WLAN(network.STA_IF)
     ap_if = network.WLAN(network.AP_IF)
+    
+    mqtt_client = None
     
     def __init__(self):
         self.pwm_buzzer.duty(0)
@@ -113,6 +118,57 @@ class Sargs:
     def handle_co2_measurement(self, m):
         self.co2_measurement = m
 
+    def run_wifi(self):
+        try:
+            if self.wifi_ssid and not self.sta_if.active():
+                self.log.info("enabling WiFi")
+                self.sta_if.active(True)
+            
+            if self.wifi_ssid and not self.sta_if.isconnected() and (ticks_ms() - self.wifi_connection_time) > 5000:
+                self.wifi_connection_time = ticks_ms()
+                self.wifi_post_connection_tasks_run = False
+                self.log.info("connecting to WiFi AP: %s" % self.wifi_ssid)
+                self.sta_if.connect(self.wifi_ssid, self.wifi_password)
+            
+            if self.sta_if.isconnected() and not self.wifi_post_connection_tasks_run:
+                self.log.info("WiFi connected, ifconfig: %s" % str(self.sta_if.ifconfig()))
+                self.wifi_post_connection_tasks_run = True
+        except OSError as e:
+            self.log.warning("OSError during wifi connection: %s" % e)
+            self.sta_if.active(False)
+            
+    def run_screen(self):
+        self.screen.fill(0)
+
+        if self.co2_measurement is None:
+            self.screen.text("Sensors uzsilst", 0, 0, 1)
+        else:
+            self.screen.text("CO2: %d ppm" % self.co2_measurement, 0, 0, 1)
+
+
+        # since user can change the threshold in main.py, use the state of output LEDs
+        if self.led_green.value():
+            self.screen.text("LABS GAISS!", 0, 20, 2)
+        elif self.led_yellow.value():
+            self.screen.text("ATVER LOGU!", 0, 20, 2)
+        elif self.led_red.value():
+            self.screen.text("AARGH!", 0, 20, 2)
+        
+       
+        
+        wifi_status_text = "WiFi: "
+        if self.wifi_ssid:
+            if self.sta_if.isconnected():
+                wifi_status_text += "savienots"
+            else:
+                wifi_status_text += "savienojas"
+        else:
+            wifi_status_text += "nav konf."
+            
+        self.screen.text(wifi_status_text, 0, 30, 2)
+        self.screen.show()
+        
+        
     def run_thread(self):
         """
         This task is executed in the context of a thread that's separate from main.py.
@@ -124,59 +180,28 @@ class Sargs:
             sleep(0.1)
         self.log.info("background thread started")
         
-        if self.wifi_ssid:
-            self.log.info("enabling WiFi")
-            self.sta_if.active(True)
-            
-        wifi_connection_time = 0
-        wifi_status_logged = False
+        
         while True:
-            self.screen.fill(0)
-
-            if self.co2_measurement is None:
-                self.screen.text("Sensors uzsilst", 0, 0, 1)
-            else:
-                self.screen.text("CO2: %d ppm" % self.co2_measurement, 0, 0, 1)
-
-
-            # since user can change the threshold in main.py, use the state of output LEDs
-            if self.led_green.value():
-                self.screen.text("LABS GAISS!", 0, 20, 2)
-            elif self.led_yellow.value():
-                self.screen.text("ATVER LOGU!", 0, 20, 2)
-            elif self.led_red.value():
-                self.screen.text("AARGH!", 0, 20, 2)
-            
-            # try connecting to WiFi if configured
-            if self.wifi_ssid and not self.sta_if.isconnected() and (ticks_ms() - wifi_connection_time) > 5000:
-                wifi_connection_time = ticks_ms()
-                self.log.info("connecting to WiFi AP: %s" % self.wifi_ssid)
-                self.sta_if.connect(self.wifi_ssid, self.wifi_password)
-            
-            wifi_status_text = "WiFi: "
-            if self.wifi_ssid:
-                if self.sta_if.isconnected():
-                    wifi_status_text += "savienots"
-                    if not wifi_status_logged:
-                        self.log.info("wifi ifconfig: %s" % str(self.sta_if.ifconfig()))
-                        wifi_status_logged = True
-                else:
-                    wifi_status_text += "savienojas"
-            else:
-                wifi_status_text += "nav konf."
-                
-            self.screen.text(wifi_status_text, 0, 30, 2)
-            self.screen.show()
-            
-            # @TODO: initiate calibration based on button
-            if self.btn_arm.value():
-                self.led_right_eye.on()
-                self.led_left_eye.on()
-            else:
-                self.led_right_eye.off()
-                self.led_left_eye.off()
-                
-            sleep(0.1)
+            try:
+                while True:
+                    self.run_screen()
+                    self.run_wifi()
+                    
+                    # @TODO: initiate calibration based on button
+                    if self.btn_arm.value():
+                        self.led_right_eye.on()
+                        self.led_left_eye.on()
+                    else:
+                        self.led_right_eye.off()
+                        self.led_left_eye.off()
+                    
+                    sleep(0.1)
+            except Exception as e:
+                self.log.error("exception in main thread")
+                self.log.error(e)
+                import sys
+                sys.print_exception(e)
+                self.log.info("re-starting main thread")
 
 sargs = Sargs()
 
