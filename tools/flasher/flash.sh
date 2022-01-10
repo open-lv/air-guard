@@ -46,8 +46,11 @@ esptool.py erase_flash
 # Now flash the MicroPython firmware.
 esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
 
-# Now upload our own firmware.
-ampy --port "$ESPTOOL_PORT" put ../../firmware/micropython/
+# Now upload our own source files
+for file in ../../firmware/micropython/; do 
+    ampy --port "$ESPTOOL_PORT" put "$file"
+done
+
 ampy --port "$ESPTOOL_PORT" ls
 
 # Keep the meta of all devices flashed
