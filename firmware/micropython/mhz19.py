@@ -66,7 +66,6 @@ class MHZ19:
   def __init__(self, uart):
     self.uart = uart
     self.log = logging.getLogger("mhz19")
-    self.log.setLevel(logging.DEBUG)
     self.log.info("initialized")
     self.verify()
 

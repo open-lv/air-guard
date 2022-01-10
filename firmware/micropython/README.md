@@ -21,6 +21,12 @@ Configuration
 
 To enable WiFi functionality, copy the config.py.example file to config.py and enter the configuration details in the file.
 
+To enable publishing to ThingSpeak channel, fill in the following configuration in config.py:
+    
+  * MQTT_CLIENT_ID = "ThingSpeak client ID"
+  * MQTT_PASSWORD = "ThingSpeak MQTT device password"
+  * MQTT_TS_CHANNEL = "ThingSpeak channel ID"
+  * MQTT_CLASS = "ThingspeakMQTTClient"
 
 MicroPython version
 -------------------------

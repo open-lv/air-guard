@@ -3,10 +3,13 @@ import mhz19
 import logging
 import ssd1306
 import network
-from umqtt.simple import MQTTClient
+import mqtt
+
 from utime import sleep, ticks_ms
 from utils import *
 import _thread
+
+logging.basicConfig(level=logging.DEBUG)
 
 class Sargs:
     
@@ -117,7 +120,14 @@ class Sargs:
             
     def handle_co2_measurement(self, m):
         self.co2_measurement = m
-
+        if self.sta_if.isconnected() and self.mqtt_client:
+            try:
+                self.mqtt_client.handle_co2_measurement(m)
+            except Exception as e:
+                self.log.error("error during mqtt publishing: %s" % e)
+                self.log.info("re-connecting to mqtt")
+                self.connect_mqtt()
+                
     def run_wifi(self):
         try:
             if self.wifi_ssid and not self.sta_if.active():
@@ -132,10 +142,33 @@ class Sargs:
             
             if self.sta_if.isconnected() and not self.wifi_post_connection_tasks_run:
                 self.log.info("WiFi connected, ifconfig: %s" % str(self.sta_if.ifconfig()))
+                self.connect_mqtt()
                 self.wifi_post_connection_tasks_run = True
+                
         except OSError as e:
             self.log.warning("OSError during wifi connection: %s" % e)
             self.sta_if.active(False)
+            self.mqtt_client = None
+            
+            
+    def connect_mqtt(self):
+        """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
+        try:
+            import config
+            
+            mqtt_class = getattr(mqtt, config.MQTT_CLASS, None)
+            if not mqtt_class:
+                self.log.error("MQTT connection class '%s' not implemented" % config.MQTT_CLASS)
+            else:
+                if getattr(config, "MQTT_CLIENT_ID", None):
+                    self.mqtt_client = mqtt_class(config)
+                    self.log.info("mqtt initialized")
+                else:
+                    self.log.error("missing mqtt client configuration")
+                    
+        except ImportError:
+            self.log.info("mqtt requires valid configuration")
+            
             
     def run_screen(self):
         self.screen.fill(0)
