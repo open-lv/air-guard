@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Uncomment this for verbose output.
-# set -ex 
+# set -ex
 
 # esptool.py is required.
 if [ ! command -v "esptool.py" &> /dev/null ]; then
@@ -47,8 +47,9 @@ esptool.py erase_flash
 esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
 
 # Now upload our own source files
-for file in ../../firmware/micropython/; do 
-    ampy --port "$ESPTOOL_PORT" put "$file"
+for pyfile in ../../firmware/micropython/*.py; do
+    echo "Uploading: $pyfile"
+    ampy --port "$ESPTOOL_PORT" put "$pyfile"
 done
 
 ampy --port "$ESPTOOL_PORT" ls
