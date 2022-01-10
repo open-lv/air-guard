@@ -16,9 +16,8 @@ if [ ! command -v "ampy" &> /dev/null ]; then
 fi
 
 # Expect to have the UART path as the only arg.
-ESPTOOL_PORT="${1:-$ESPTOOL_PORT}"
 if [ -z "$ESPTOOL_PORT" ]; then
-	echo "Specify configure the ESPTOOL_PORT environment variable to point to the UART port (/dev/tty....)."
+	echo "Specify configure the ESPTOOL_PORT environment variable to point to the UART port (/dev/tty...)."
 	exit 1
 fi
 
@@ -37,7 +36,7 @@ if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
 fi
 
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
-    echo "Firmware file $FIRMWARE_FILE_NAME not found at the current directory $PWD."
+    echo "MicroPython firmware file $FIRMWARE_FILE_NAME not found at the current directory $PWD."
     exit 1
 fi
 

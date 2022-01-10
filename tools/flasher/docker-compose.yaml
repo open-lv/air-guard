@@ -8,7 +8,9 @@ services:
     volumes:
       - .:/build
       - ../../firmware/micropython:/build/firmware
-    command: ./flash.sh "$UART_PATH"
+    command: ./flash.sh
+    environment:
+      - ESPTOOL_PORT
     privileged: true
     devices:
-      - "$UART_PATH"
+      - $ESPTOOL_PORT
