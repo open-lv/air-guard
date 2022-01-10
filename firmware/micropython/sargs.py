@@ -9,7 +9,7 @@ import ssd1306
 import mqtt
 from utils import *
 import mhz19
-
+import sargsscreen
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -25,13 +25,14 @@ class Sargs:
     pin_ldr = Pin(34, Pin.IN)
     pin_lcd_data = Pin(21, pull=Pin.PULL_UP)
     pin_lcd_clock = Pin(22, pull=Pin.PULL_UP)
+    pin_co2_calibrate = Pin(27, Pin.OUT, value=1)
 
     co2_sensor_uart = 2
     co2_sensor = None
 
     pwm_buzzer = PWM(Pin(32, Pin.OUT, value=0), freq=1000, duty=0)
     screen = None
-
+    sargsscreen = None
     co2_measurement = None
     user_main_loop_started = False
 
@@ -66,6 +67,7 @@ class Sargs:
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
+            self.sargsscreen = sargsscreen.SargsScreen(self.screen, self.btn_arm)
             self.log.info("LCD initialized")
         except OSError:
             self.log.error("could not initialize LCD")
@@ -170,32 +172,26 @@ class Sargs:
             self.log.info("mqtt requires valid configuration")
 
     def run_screen(self):
-        self.screen.fill(0)
+        # update screen state
+        self.sargsscreen.set_co2_measurement(self.co2_measurement)
 
-        if self.co2_measurement is None:
-            self.screen.text("Sensors uzsilst", 0, 0, 1)
-        else:
-            self.screen.text("CO2: %d ppm" % self.co2_measurement, 0, 0, 1)
-
-        # since user can change the threshold in main.py, use the state of output LEDs
-        if self.led_green.value():
-            self.screen.text("LABS GAISS!", 0, 20, 2)
+        if self.led_red.value():
+            level = sargsscreen.CO2Level.HIGH
         elif self.led_yellow.value():
-            self.screen.text("ATVER LOGU!", 0, 20, 2)
-        elif self.led_red.value():
-            self.screen.text("AARGH!", 0, 20, 2)
-
-        wifi_status_text = "WiFi: "
-        if self.wifi_ssid:
-            if self.sta_if.isconnected():
-                wifi_status_text += "savienots"
-            else:
-                wifi_status_text += "savienojas"
+            level = sargsscreen.CO2Level.MEDIUM
         else:
-            wifi_status_text += "nav konf."
+            level = sargsscreen.CO2Level.LOW
+        self.sargsscreen.set_co2_level(level)
 
-        self.screen.text(wifi_status_text, 0, 30, 2)
-        self.screen.show()
+        if self.sta_if.isconnected():
+            wifi_state = sargsscreen.WiFiState.CONNECTED
+        elif self.sta_if.active():
+            wifi_state = sargsscreen.WiFiState.CONNECTING
+        else:
+            wifi_state = sargsscreen.WiFiState.UNCONFIGURED
+        self.sargsscreen.set_wifi_state(wifi_state)
+
+        self.sargsscreen.update()
 
     def run_thread(self):
         """
