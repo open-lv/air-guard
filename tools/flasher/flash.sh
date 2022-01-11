@@ -4,13 +4,13 @@
 # set -ex
 
 # esptool.py is required.
-if [ ! command -v "esptool.py" &> /dev/null ]; then
+if ! [ -x "$(command -v "esptool.py")" ]; then
     echo "ERROR: esptool.py not found! See https://pypi.org/project/esptool/"
     exit 1
 fi
 
 # ampy is required.
-if [ ! command -v "ampy" &> /dev/null ]; then
+if ! [ -x "$(command -v "ampy")" ]; then
     echo "ERROR: ampy not found! See https://pypi.org/project/adafruit-ampy/"
     exit 1
 fi
