@@ -7,6 +7,7 @@ import sys
 
 import ssd1306
 import mqtt
+from umqtt.simple import MQTTException
 from utils import *
 import mhz19
 import sargsui
@@ -46,6 +47,8 @@ class Sargs:
     ap_if = network.WLAN(network.AP_IF)
 
     mqtt_client = None
+
+    exit_requested = False
 
     def __init__(self):
         self.pwm_buzzer.duty(0)
@@ -93,7 +96,8 @@ class Sargs:
             try:
                 self.co2_sensor = mhz19.MHZ19(UART(self.co2_sensor_uart, 9600, timeout=1000))
                 mhz_initialized = self.co2_sensor.verify()
-                break
+                if mhz_initialized:
+                    break
             except mhz19.MHZ19Exception:
                 self.log.debug("re-trying CO2 sensor initialization...")
                 sleep(0.5)
@@ -126,8 +130,8 @@ class Sargs:
         if self.sta_if.isconnected() and self.mqtt_client:
             try:
                 self.mqtt_client.handle_co2_measurement(m)
-            except Exception as e:
-                self.log.error("error during mqtt publishing: %s" % e)
+            except (MQTTException, OSError) as e:
+                self.log.error("error during mqtt publishing: %s" % repr(e))
                 self.log.info("re-connecting to mqtt")
                 self.connect_mqtt()
 
@@ -207,13 +211,13 @@ class Sargs:
         calibration statemachine (and probably something else I haven't thought about yet)
         """
         self.log.info("starting background thread, waiting for user main thread to start")
-        while not self.user_main_loop_started:
+        while not self.user_main_loop_started and not self.exit_requested:
             sleep(0.1)
         self.log.info("background thread started")
 
-        while True:
+        while not self.exit_requested:
             try:
-                while True:
+                while not self.exit_requested:
                     self.run_screen()
                     self.run_wifi()
 
@@ -226,6 +230,10 @@ class Sargs:
                         self.led_left_eye.off()
 
                     sleep(0.03)
+            except KeyboardInterrupt as e:
+                self.log.info("KeyboardInterrupt, exiting Sargs thread")
+                self.exit_requested = True
+                raise e
             except Exception as e:
                 self.log.error("exception in main thread")
                 self.log.error(e)
