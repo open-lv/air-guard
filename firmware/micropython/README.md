@@ -28,6 +28,15 @@ To enable publishing to ThingSpeak channel, fill in the following configuration 
   * MQTT_TS_CHANNEL = "ThingSpeak channel ID"
   * MQTT_CLASS = "ThingspeakMQTTClient"
 
+CO2 sensor calibration
+--------------------------
+
+Manually triggered 400ppm point calibration is implemented. To use it, make sure the sensor is exposed
+to ~400ppm (fresh air, outside) for at least 20 minutes before and after starting the calibration.
+
+To start calibration, press the button for at least 5 seconds, then select "Yes" button on confirmation dialog with a short press,
+then confirm the start of calibration by long press when "Yes" button is selected.
+
 MicroPython version
 -------------------------
 
