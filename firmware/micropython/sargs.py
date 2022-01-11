@@ -9,7 +9,7 @@ import ssd1306
 import mqtt
 from utils import *
 import mhz19
-import sargsscreen
+import sargsui
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -30,9 +30,9 @@ class Sargs:
     co2_sensor_uart = 2
     co2_sensor = None
 
-    pwm_buzzer = PWM(Pin(32, Pin.OUT, value=0), freq=1000, duty=0)
+    pwm_buzzer = PWM(Pin(32, Pin.OUT), freq=1000, duty=0)
     screen = None
-    sargsscreen = None
+    ui = None
     co2_measurement = None
     user_main_loop_started = False
 
@@ -67,7 +67,7 @@ class Sargs:
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
-            self.sargsscreen = sargsscreen.SargsScreen(self.screen, self.btn_arm)
+            self.ui = sargsui.SargsUI(self.screen, self.btn_arm)
             self.log.info("LCD initialized")
         except OSError:
             self.log.error("could not initialize LCD")
@@ -173,25 +173,32 @@ class Sargs:
 
     def run_screen(self):
         # update screen state
-        self.sargsscreen.set_co2_measurement(self.co2_measurement)
+        self.ui.set_co2_measurement(self.co2_measurement)
 
         if self.led_red.value():
-            level = sargsscreen.CO2Level.HIGH
+            level = sargsui.CO2Level.HIGH
         elif self.led_yellow.value():
-            level = sargsscreen.CO2Level.MEDIUM
+            level = sargsui.CO2Level.MEDIUM
         else:
-            level = sargsscreen.CO2Level.LOW
-        self.sargsscreen.set_co2_level(level)
+            level = sargsui.CO2Level.LOW
+        self.ui.set_co2_level(level)
 
         if self.sta_if.isconnected():
-            wifi_state = sargsscreen.WiFiState.CONNECTED
+            wifi_state = sargsui.WiFiState.CONNECTED
         elif self.sta_if.active():
-            wifi_state = sargsscreen.WiFiState.CONNECTING
+            wifi_state = sargsui.WiFiState.CONNECTING
         else:
-            wifi_state = sargsscreen.WiFiState.UNCONFIGURED
-        self.sargsscreen.set_wifi_state(wifi_state)
+            wifi_state = sargsui.WiFiState.UNCONFIGURED
+        self.ui.set_wifi_state(wifi_state)
 
-        self.sargsscreen.update()
+        self.ui.update()
+
+        if self.ui.calibration_requested:
+            self.log.info("holding sensor calibration pin low")
+            self.pin_co2_calibrate.value(0)
+            sleep(10)
+            self.pin_co2_calibrate.value(1)
+            self.ui.select_main_screen()
 
     def run_thread(self):
         """
@@ -218,7 +225,7 @@ class Sargs:
                         self.led_right_eye.off()
                         self.led_left_eye.off()
 
-                    sleep(0.1)
+                    sleep(0.03)
             except Exception as e:
                 self.log.error("exception in main thread")
                 self.log.error(e)
