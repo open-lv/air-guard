@@ -41,7 +41,7 @@ if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
 fi
 
 # First make sure the flash is empty.
-esptool.py erase_flash
+esptool.py --chip esp32 erase_flash
 
 # Now flash the MicroPython firmware.
 esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
