@@ -1,5 +1,5 @@
 import logging
-from utime import ticks_ms
+from utime import ticks_ms, sleep
 
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
@@ -114,9 +114,17 @@ class SargsUI:
     cal_screen_btn_handler = None
     cal_screen_negedge_count = 0
     cal_screen_act_time = 0
+    buzzer = None
 
-    def __init__(self, screen, btn_signal):
+    # hysteresis/debounce time in ms for med->high CO2 level (so that alert does not repeat if the
+    # CO2 measurement fluctuates around the limit
+    HIGH_CO2_ALERT_DEBOUNCE_MS = 5 * 60 * 1000
+    high_co2_alert_time = 0
+    prev_co2_level = CO2Level.LOW
+
+    def __init__(self, screen, btn_signal, buzzer):
         self.log = logging.getLogger("screen")
+        self.buzzer = buzzer
         self.screen = screen
         self.btn_signal = btn_signal
         self.main_screen_btn_handler = ButtonEventHandler(self.btn_signal)
@@ -151,8 +159,17 @@ class SargsUI:
             screen_fn_map[self.current_screen]()
         self.screen.show()
 
+        # if CO2 level has just become high
+        if self.co2_level == CO2Level.HIGH and self.prev_co2_level != self.co2_level:
+            # end we haven't alerted for some time
+            if (ticks_ms() - self.high_co2_alert_time) > self.HIGH_CO2_ALERT_DEBOUNCE_MS:
+                self.buzzer.high_co2_level_alert()
+                self.high_co2_alert_time = ticks_ms()
+        self.prev_co2_level = self.co2_level
+
     def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
+            self.buzzer.short_beep()
             self.log.info("switching to cal screen")
             self.select_cal_screen()
 
@@ -184,6 +201,7 @@ class SargsUI:
         if not self.calibration_requested and self.cal_screen_negedge_count > 0:
             # select yes/no on button release
             if self.cal_screen_btn_handler.negedge():
+                self.buzzer.short_beep()
                 self.cal_screen_act_time = ticks_ms()
                 self.cal_sel_btn += 1
                 if self.cal_sel_btn == 3:
@@ -195,8 +213,10 @@ class SargsUI:
                     self.log.info("user cal requested")
                     self.calibration_requested = True
                     self.cal_screen_act_time = ticks_ms()
+                    self.buzzer.long_beep()
                 else:
                     # no btn selected, go back to main screen
+                    self.buzzer.short_beep()
                     self.log.info("returning to main screen due to no button")
                     self.select_main_screen()
 

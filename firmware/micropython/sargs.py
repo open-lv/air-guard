@@ -30,8 +30,7 @@ class Sargs:
 
     co2_sensor_uart = 2
     co2_sensor = None
-
-    pwm_buzzer = PWM(Pin(32, Pin.OUT), freq=1000, duty=0)
+    buzzer = Buzzer(Pin(32))
     screen = None
     ui = None
     co2_measurement = None
@@ -51,9 +50,7 @@ class Sargs:
     exit_requested = False
 
     def __init__(self):
-        self.pwm_buzzer.duty(0)
         self.log = logging.getLogger("sargs")
-
         # disable WiFi interfaces
         self.ap_if.active(False)
         # disabling interface on startup helps with OSError Internal WiFi error when reconnecting
@@ -70,7 +67,7 @@ class Sargs:
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
-            self.ui = sargsui.SargsUI(self.screen, self.btn_arm)
+            self.ui = sargsui.SargsUI(self.screen, self.btn_arm, self.buzzer)
             self.log.info("LCD initialized")
         except OSError:
             self.log.error("could not initialize LCD")
@@ -214,7 +211,7 @@ class Sargs:
         while not self.user_main_loop_started and not self.exit_requested:
             sleep(0.1)
         self.log.info("background thread started")
-
+        self.buzzer.startup_beep()
         while not self.exit_requested:
             try:
                 while not self.exit_requested:
