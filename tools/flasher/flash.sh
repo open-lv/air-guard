@@ -56,9 +56,9 @@ else
       red "Invalid device selected. Exiting"
       exit 1
     fi
+  else
+    ESPTOOL_PORT="$(echo "$DEVICE_PORTS_LIST" | head -1)"
   fi
-
-  ESPTOOL_PORT="$(echo "$DEVICE_LIST" | cut -d' ' -f1)"
 fi
 
 green "Selected device to flash: $(echo "$DEVICE_LIST" | grep "$ESPTOOL_PORT")"
