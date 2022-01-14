@@ -20,10 +20,12 @@ class ThingspeakMQTTClient(MQTTClient):
         self.publish_interval_s = getattr(config, "MQTT_PUBLISH_INTERVAL_S", 60)
         self.next_publish_time_ms = 0
 
-    def handle_co2_measurement(self, measurement):
+    def handle_co2_measurement(self, co2_measurement, temperature_measurement=None):
         if ticks_ms() > self.next_publish_time_ms:
             self.next_publish_time_ms = ticks_ms() + self.publish_interval_s * 1000
-            payload = "field1=%d" % measurement
+            payload = "field1=%d" % co2_measurement
+            if temperature_measurement:
+                payload += "&field2=%d" % temperature_measurement
             self.log.info("publishing mqtt topic %s, payload: %s" % (self.topic, payload))
             self.connect()
             self.publish(self.topic, payload)

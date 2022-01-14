@@ -51,6 +51,7 @@ class Sargs:
 
     def __init__(self):
         self.log = logging.getLogger("sargs")
+
         # disable WiFi interfaces
         self.ap_if.active(False)
         # disabling interface on startup helps with OSError Internal WiFi error when reconnecting
@@ -63,6 +64,7 @@ class Sargs:
         # initialize configuration from config.py
         self._init_config()
 
+
     def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
@@ -73,6 +75,7 @@ class Sargs:
             self.handle_lcd_fault()
 
     def handle_lcd_fault(self):
+        self.exit_requested = True
         self.log.error("could not initialize LCD")
         for _ in range(30):
             self.led_red.on()
@@ -110,9 +113,11 @@ class Sargs:
             self.co2_sensor.set_abc_state(False)
 
     def handle_co2_sensor_fault(self):
+        self.exit_requested = True
         self.log.error("CO2 sensor not responding")
         self.screen.fill(0)
-        self.screen.text("CO2 sens. neatbild", 0, 0, 1)
+        self.screen.text("  CO2 sensors", 0, 20)
+        self.screen.text("    neatbild!", 0, 30)
         self.screen.show()
         for _ in range(30):
             self.led_yellow.on()
@@ -136,7 +141,7 @@ class Sargs:
         self.co2_measurement = m
         if self.sta_if.isconnected() and self.mqtt_client:
             try:
-                self.mqtt_client.handle_co2_measurement(m)
+                self.mqtt_client.handle_co2_measurement(m, self.co2_sensor.get_cached_temperature_reading())
             except (MQTTException, OSError) as e:
                 self.log.error("error during mqtt publishing: %s" % repr(e))
                 self.log.info("re-connecting to mqtt")
@@ -184,15 +189,15 @@ class Sargs:
 
     def run_screen(self):
         # update screen state
-        self.ui.set_co2_measurement(self.co2_measurement)
-
-        if self.led_red.value():
-            level = sargsui.CO2Level.HIGH
-        elif self.led_yellow.value():
-            level = sargsui.CO2Level.MEDIUM
-        else:
-            level = sargsui.CO2Level.LOW
-        self.ui.set_co2_level(level)
+        if self.co2_sensor.sensor_warmed_up:
+            self.ui.set_co2_measurement(self.co2_measurement)
+            if self.led_red.value():
+                level = sargsui.CO2Level.HIGH
+            elif self.led_yellow.value():
+                level = sargsui.CO2Level.MEDIUM
+            else:
+                level = sargsui.CO2Level.LOW
+            self.ui.set_co2_level(level)
 
         if self.sta_if.isconnected():
             wifi_state = sargsui.WiFiState.CONNECTED
@@ -218,6 +223,7 @@ class Sargs:
         calibration statemachine (and probably something else I haven't thought about yet)
         """
         self.log.info("starting background thread, waiting for user main thread to start")
+        self.buzzer.duty(0)
         while not self.user_main_loop_started and not self.exit_requested:
             sleep(0.1)
         self.log.info("background thread started")
@@ -260,9 +266,9 @@ def perform_co2_measurement():
     sargs.user_main_loop_started = True
     heating_start_time = ticks_ms()
     measurement = None
-    while (ticks_ms() - heating_start_time) < 60 * 1000:
+    while (ticks_ms() - heating_start_time) < 120 * 1000:
         measurement = sargs.co2_sensor.get_co2_reading()
-        if not measurement is None:
+        if measurement is not None:
             return measurement
         sleep(1)
 

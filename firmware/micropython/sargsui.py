@@ -15,7 +15,7 @@ class CO2Level:
     LOW = 1
     MEDIUM = 2
     HIGH = 3
-
+    UNKNOWN = 4
 
 class ScreenState:
     MAIN_SCREEN = 1
@@ -95,7 +95,7 @@ class ButtonEventHandler:
 
 class SargsUI:
     co2_measurement = None
-    co2_level = CO2Level.MEDIUM
+    co2_level = CO2Level.UNKNOWN
     wifi_state = WiFiState.UNCONFIGURED
     current_screen = ScreenState.MAIN_SCREEN
     calibration_requested = False
@@ -107,7 +107,8 @@ class SargsUI:
     CO2_LEVEL_DESC = {
         CO2Level.LOW: "LABS GAISS!",
         CO2Level.MEDIUM: "ATVER LOGU!",
-        CO2Level.HIGH: "AARGH!"
+        CO2Level.HIGH: "AARGH!",
+        CO2Level.UNKNOWN: "",
     }
     cal_sel_btn = 1
     main_screen_btn_handler = None
