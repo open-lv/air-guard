@@ -1,5 +1,6 @@
 import logging
 import ubinascii
+import utime
 
 
 class MHZ19Exception(Exception):
@@ -71,10 +72,16 @@ class MHZ19:
 
     sensor_warmed_up = False
     prev_co2_reading = None
+    cached_co2_reading = None
+    cached_temperature_reading = None
+
+    MIN_WARMUP_TIME_MS = 10 * 1000  # minimum sensor warmup time
+    init_time = 0
 
     def __init__(self, uart):
         self.uart = uart
         self.log = logging.getLogger("mhz19")
+        self.init_time = utime.ticks_ms()
         self.log.info("initialized")
 
     def send_cmd(self, cmd, payload=None):
@@ -122,10 +129,18 @@ class MHZ19:
             self.log.info("reading: %dppm, temp=%d, status=0x%x, unknown value=%d" %
                           (reading_ppm, temperature, status, unknown_value))
 
-            if self.prev_co2_reading and reading_ppm != self.prev_co2_reading:
-                self.sensor_warmed_up = True
-            self.prev_co2_reading = reading_ppm
+            min_warmup_done = (utime.ticks_ms() - self.init_time) > self.MIN_WARMUP_TIME_MS
+
+            if min_warmup_done:
+
+                if self.prev_co2_reading and reading_ppm != self.prev_co2_reading and not self.sensor_warmed_up:
+                    self.log.info("sensor warmup detected")
+                    self.sensor_warmed_up = True
+                self.prev_co2_reading = reading_ppm
+
             if self.sensor_warmed_up:
+                self.cached_co2_reading = reading_ppm
+                self.cached_temperature_reading = temperature
                 return reading_ppm
             else:
                 return None
@@ -146,6 +161,12 @@ class MHZ19:
         else:
             self.log.info("successfully set ABC state to %d" % abc_state)
         return True
+
+    def get_cached_co2_reading(self):
+        return self.cached_co2_reading
+
+    def get_cached_temperature_reading(self):
+        return self.cached_temperature_reading
 
 
 class MHZ19Sim(MHZ19):
