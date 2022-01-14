@@ -11,7 +11,7 @@ from umqtt.simple import MQTTException
 from utils import *
 import mhz19
 import sargsui
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Sargs:
@@ -104,6 +104,10 @@ class Sargs:
 
         if not mhz_initialized:
             self.handle_co2_sensor_fault()
+        else:
+            # turn off ABC calibration, as it would be an optimistic assumption that classrooms reach 400ppm
+            # in any given day
+            self.co2_sensor.set_abc_state(False)
 
     def handle_co2_sensor_fault(self):
         self.log.error("CO2 sensor not responding")
@@ -264,8 +268,6 @@ def perform_co2_measurement():
 
     if measurement is None:
         sargs.handle_co2_sensor_fault()
-
-
 
 
 def handle_co2_measurement(m):

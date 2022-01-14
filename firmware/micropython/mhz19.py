@@ -65,6 +65,7 @@ class MHZ19Cmd:
 class MHZ19:
     CMD_GET_FW_VERSION = 0xA0
     CMD_GET_READING = 0x86
+    CMD_SET_ABC_STATE = 0x79
 
     uart = None
 
@@ -75,7 +76,6 @@ class MHZ19:
         self.uart = uart
         self.log = logging.getLogger("mhz19")
         self.log.info("initialized")
-        self.verify()
 
     def send_cmd(self, cmd, payload=None):
         c = MHZ19Cmd(cmd, payload)
@@ -131,6 +131,21 @@ class MHZ19:
                 return None
         else:
             return None
+
+    def set_abc_state(self, abc_state):
+        """Turns the automatic baseline calibration on/off"""
+        payload = bytearray([0] * 5)
+        if abc_state:
+            payload[0] = 0xA0
+        resp = self.send_cmd(self.CMD_SET_ABC_STATE, payload)
+        if resp and resp.payload[0] != 0x1:
+            self.log.error("failed to set ABC state to %d" % abc_state)
+            return False
+        if resp is None:
+            self.log.warning("no response for set ABC state")
+        else:
+            self.log.info("successfully set ABC state to %d" % abc_state)
+        return True
 
 
 class MHZ19Sim(MHZ19):
