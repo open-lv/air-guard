@@ -11,7 +11,7 @@ from umqtt.simple import MQTTException
 from utils import *
 import mhz19
 import sargsui
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class Sargs:
@@ -70,13 +70,16 @@ class Sargs:
             self.ui = sargsui.SargsUI(self.screen, self.btn_arm, self.buzzer)
             self.log.info("LCD initialized")
         except OSError:
-            self.log.error("could not initialize LCD")
-            for _ in range(30):
-                self.led_red.on()
-                sleep(0.5)
-                self.led_red.off()
-                sleep(0.5)
-            sys.exit()
+            self.handle_lcd_fault()
+
+    def handle_lcd_fault(self):
+        self.log.error("could not initialize LCD")
+        for _ in range(30):
+            self.led_red.on()
+            sleep(0.5)
+            self.led_red.off()
+            sleep(0.5)
+        sys.exit()
 
     def _init_co2_sensor(self):
         # I don't have the correct ESP32 module, and the module I'm using has UART2 pins connected to flash memory,
@@ -100,16 +103,19 @@ class Sargs:
                 sleep(0.5)
 
         if not mhz_initialized:
-            self.log.error("CO2 sensor not responding")
-            self.screen.fill(0)
-            self.screen.text("CO2 sensors neatbild", 0, 0, 1)
-            self.screen.show()
-            for _ in range(30):
-                self.led_yellow.on()
-                sleep(0.5)
-                self.led_yellow.off()
-                sleep(0.5)
-            sys.exit()
+            self.handle_co2_sensor_fault()
+
+    def handle_co2_sensor_fault(self):
+        self.log.error("CO2 sensor not responding")
+        self.screen.fill(0)
+        self.screen.text("CO2 sens. neatbild", 0, 0, 1)
+        self.screen.show()
+        for _ in range(30):
+            self.led_yellow.on()
+            sleep(0.5)
+            self.led_yellow.off()
+            sleep(0.5)
+        sys.exit()
 
     def _init_config(self):
 
@@ -248,7 +254,18 @@ for a in ['led_red', 'led_green', 'led_yellow', 'led_right_eye', 'led_left_eye',
 def perform_co2_measurement():
     # @TODO: Handle repeated hecksum errors here
     sargs.user_main_loop_started = True
-    return sargs.co2_sensor.get_co2_reading()
+    heating_start_time = ticks_ms()
+    measurement = None
+    while (ticks_ms() - heating_start_time) < 60 * 1000:
+        measurement = sargs.co2_sensor.get_co2_reading()
+        if not measurement is None:
+            return measurement
+        sleep(1)
+
+    if measurement is None:
+        sargs.handle_co2_sensor_fault()
+
+
 
 
 def handle_co2_measurement(m):

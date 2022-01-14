@@ -54,7 +54,7 @@ class MHZ19Cmd:
 
         self.body = resp
         self.cmd = resp[1]
-        self.payload = resp[2:7]
+        self.payload = resp[2:8]
         self.csum = resp[8]
         calc_csum = calc_checksum(self.body[1:8])
         if calc_csum != self.csum:
@@ -67,6 +67,9 @@ class MHZ19:
     CMD_GET_READING = 0x86
 
     uart = None
+
+    sensor_warmed_up = False
+    prev_co2_reading = None
 
     def __init__(self, uart):
         self.uart = uart
@@ -101,8 +104,31 @@ class MHZ19:
     def get_co2_reading(self):
         resp = self.send_cmd(self.CMD_GET_READING)
         if resp:
+            # decode the reading
+            # payload format: HH LL TT SS U1 U2
+            # HH LL: CO2 measurement (2-bytes)
+            # TT: temperature, supposedly
+            # SS: status
+            # U1 U2 unknown value
+            # proposed heuristic by https://revspace.nl/MHZ19 (status 0x40, U1U2 < 15000 doesn't seem to work on C
+            # sensor (ss, u1, u2 are always 0)
+            # so, the current best guess is to wait for the sensor to start returning a different co2 value than it
+            # was reporting previously
+
             reading_ppm = resp.payload[0] << 8 | resp.payload[1]
-            return reading_ppm
+            status = resp.payload[3]
+            unknown_value = resp.payload[4] | resp.payload[5]
+            temperature = resp.payload[2] - 40  # offset of 40 seems to work for C sensor
+            self.log.info("reading: %dppm, temp=%d, status=0x%x, unknown value=%d" %
+                          (reading_ppm, temperature, status, unknown_value))
+
+            if self.prev_co2_reading and reading_ppm != self.prev_co2_reading:
+                self.sensor_warmed_up = True
+            self.prev_co2_reading = reading_ppm
+            if self.sensor_warmed_up:
+                return reading_ppm
+            else:
+                return None
         else:
             return None
 
