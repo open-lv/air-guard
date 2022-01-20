@@ -3,4 +3,5 @@
   (lib (name mh_z19b)(type Legacy)(uri ${KIPRJMOD}/libs/mh_z19b.lib)(options "")(descr ""))
   (lib (name SSD1306-128x64_OLED)(type Legacy)(uri ${KIPRJMOD}/libs/SSD1306-128x64_OLED.lib)(options "")(descr ""))
   (lib (name gaisa-sargs-0)(type Legacy)(uri ${KIPRJMOD}/libs/gaisa-sargs-0.lib)(options "")(descr ""))
+  (lib (name badgelife_shitty_addon_v169bis)(type Legacy)(uri ${KIPRJMOD}/libs/badgelife-parts-master/badgelife_shitty_addon_v169bis.lib)(options "")(descr ""))
 )
