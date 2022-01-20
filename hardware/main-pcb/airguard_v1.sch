@@ -185,10 +185,10 @@ F 5 "https://lcsc.com/product-detail/Bipolar-Transistors-BJT_ST-Semtech-2N2222A_
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:LED SARKANS
+L Device:LED SARKANS1
 U 1 1 6186E917
 P 10350 1350
-F 0 "SARKANS" V 10389 1232 50  0000 R CNN
+F 0 "SARKANS1" V 10389 1232 50  0000 R CNN
 F 1 "LED_RED" V 10298 1232 50  0000 R CNN
 F 2 "footprints:LED_D10.0mm" H 10350 1350 50  0001 C CNN
 F 3 "~" H 10350 1350 50  0001 C CNN
@@ -254,10 +254,10 @@ F 5 "https://lcsc.com/product-detail/Bipolar-Transistors-BJT_ST-Semtech-2N2222A_
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:LED DZELTENS
+L Device:LED DZELTENS1
 U 1 1 61890C9C
 P 10350 3200
-F 0 "DZELTENS" V 10389 3082 50  0000 R CNN
+F 0 "DZELTENS1" V 10389 3082 50  0000 R CNN
 F 1 "LED_YELLOW" V 10298 3082 50  0000 R CNN
 F 2 "footprints:LED_D10.0mm" H 10350 3200 50  0001 C CNN
 F 3 "~" H 10350 3200 50  0001 C CNN
@@ -316,10 +316,10 @@ F 5 "https://lcsc.com/product-detail/Bipolar-Transistors-BJT_ST-Semtech-2N2222A_
 	1    0    0    -1  
 $EndComp
 $Comp
-L Device:LED ZAĻŠ
+L Device:LED ZAĻŠ1
 U 1 1 61896192
 P 10350 5050
-F 0 "ZAĻŠ" V 10389 4932 50  0000 R CNN
+F 0 "ZAĻŠ1" V 10389 4932 50  0000 R CNN
 F 1 "LED_GREEN" V 10298 4932 50  0000 R CNN
 F 2 "footprints:LED_D10.0mm" H 10350 5050 50  0001 C CNN
 F 3 "~" H 10350 5050 50  0001 C CNN
@@ -397,7 +397,7 @@ Wire Notes Line
 Wire Notes Line
 	7150 6250 8900 6250
 Text Notes 750  1000 0    236  Italic 47
-GAISA SARGS R03
+GAISA SARGS R3
 $Comp
 L Switch:SW_Push SW1
 U 1 1 618C06AC
