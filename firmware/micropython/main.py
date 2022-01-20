@@ -1,10 +1,10 @@
 from sargs import *
 
-# Ekrāna pārbaude
+# Ekr膩na p膩rbaude
 SCREEN.text('Sveika, pasaule!', 0, 0, 1)
 SCREEN.show()
 
-# Pārbaude pēc ieslēgšanās: ieslēdzam visas gaismas diodes pēc kārtas un pēc tam izslēdzam tās
+# P膩rbaude p膿c iesl膿g拧an膩s: iesl膿dzam visas gaismas diodes p膿c k膩rtas un p膿c tam izsl膿dzam t膩s
 pins = [LED_GREEN, LED_YELLOW, LED_RED, LED_RIGHT_EYE, LED_LEFT_EYE]
 for p in pins:
     p.on()
