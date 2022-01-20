@@ -1,6 +1,0 @@
-Height: 95mm
-Width: 83mm
-Layers: 2
-Thickness 1.6mm
-Soldermask: blue
-Silk: white
