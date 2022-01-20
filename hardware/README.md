@@ -4,7 +4,7 @@
 
 GAISA SARGS is an open source air quality monitor DIY kit for kids & teenagers.
 
-Current revision: **02**
+Current revision: **03**
 
 Known bugs: **none yet**
 
@@ -15,6 +15,9 @@ The project consists of 3 PCBs you need to order:
 1) [The main PCB x1 ](https://github.com/open-lv/air-guard/tree/main/hardware/main-pcb) 
 2) [The side PCB x2 ](https://github.com/open-lv/air-guard/tree/main/hardware/side-pcb)
 3) [The rear PCB x1 ](https://github.com/open-lv/air-guard/tree/main/hardware/rear-pcb)
+
+If you want to practice soldering, feel free to order some "friend" PCBs:
+[DRAUGS PCB ](https://github.com/open-lv/air-guard/tree/main/hardware/draugs-pcb)
 
 The PCBs are drawn in Kicad 5.1.x
 The schematic of the main board: [airguard_v1.pdf](https://github.com/open-lv/air-guard/blob/main/hardware/main-pcb/airguard_v1.pdf)
@@ -58,6 +61,7 @@ Most likely not much will change, but please keep it in mind while viewing it.
 17) Buzzer 10mm pin to pin - 1x
 18) Standard TH push button 6mm - 1x
 19) SSD1306 based I2C OLED 0.96" 128x64px - 1x - check voltage and pinout on the pcb!!
+20) 220uF electrolytic capacitor(6.3x11, 25+V)
 
 That's it! It's a very simple project electroncis wise, so feel free to experiment, customize or improve it!
 
