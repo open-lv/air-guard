@@ -1,4 +1,4 @@
-from machine import Pin, I2C, PWM, UART, Signal
+from machine import Pin, I2C, PWM, UART, Signal, ADC
 import logging
 import network
 from utime import sleep, ticks_ms
@@ -13,17 +13,20 @@ import mhz19
 import sargsui
 logging.basicConfig(level=logging.DEBUG)
 
+HAND_BRIGHTNESS = 128
+EYE_BRIGHTNESS = 128
+
 
 class Sargs:
-    led_red = LEDSignal(Pin(33, Pin.OUT))
-    led_yellow = LEDSignal(Pin(25, Pin.OUT))
-    led_green = LEDSignal(Pin(26, Pin.OUT))
-    led_left_eye = LEDSignal(Pin(23, Pin.OUT))
-    led_right_eye = LEDSignal(Pin(19, Pin.OUT))
+    led_red = LEDPWMSignal(Pin(33, Pin.OUT), on_duty=HAND_BRIGHTNESS)
+    led_yellow = LEDPWMSignal(Pin(25, Pin.OUT), on_duty=HAND_BRIGHTNESS)
+    led_green = LEDPWMSignal(Pin(26, Pin.OUT), on_duty=HAND_BRIGHTNESS)
+    led_left_eye = LEDPWMSignal(Pin(23, Pin.OUT), on_duty=EYE_BRIGHTNESS)
+    led_right_eye = LEDPWMSignal(Pin(19, Pin.OUT), on_duty=EYE_BRIGHTNESS)
 
     btn_arm = Signal(Pin(35, Pin.IN, Pin.PULL_UP), invert=True)
 
-    pin_ldr = Pin(34, Pin.IN)
+    ldr_adc = ADC(Pin(34))
     pin_lcd_data = Pin(21, pull=Pin.PULL_UP)
     pin_lcd_clock = Pin(22, pull=Pin.PULL_UP)
     pin_co2_calibrate = Pin(27, Pin.OUT, value=1)
@@ -50,6 +53,7 @@ class Sargs:
     exit_requested = False
 
     def __init__(self):
+        self.ldr_adc.atten(ADC.ATTN_11DB)  # for some reason, specifying atten while creating ADC doesn't work
         self.log = logging.getLogger("sargs")
 
         # disable WiFi interfaces
@@ -64,12 +68,12 @@ class Sargs:
         # initialize configuration from config.py
         self._init_config()
 
-
     def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
-            self.ui = sargsui.SargsUI(self.screen, self.btn_arm, self.buzzer)
+            self.ui = sargsui.SargsUI(self.screen, self.btn_arm, self.buzzer,
+                                      self.ldr_adc, self.led_left_eye, self.led_right_eye)
             self.log.info("LCD initialized")
         except OSError:
             self.handle_lcd_fault()
@@ -216,7 +220,7 @@ class Sargs:
             self.pin_co2_calibrate.value(1)
             self.ui.select_main_screen()
 
-    def run_thread(self):
+    def run_main_thread(self):
         """
         This task is executed in the context of a thread that's separate from main.py.
         It should handle re-drawing screen, handling WiFi status polling, 
@@ -233,15 +237,6 @@ class Sargs:
                 while not self.exit_requested:
                     self.run_screen()
                     self.run_wifi()
-
-                    # @TODO: initiate calibration based on button
-                    if self.btn_arm.value():
-                        self.led_right_eye.on()
-                        self.led_left_eye.on()
-                    else:
-                        self.led_right_eye.off()
-                        self.led_left_eye.off()
-
                     sleep(0.03)
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
@@ -253,6 +248,7 @@ class Sargs:
                 import sys
                 sys.print_exception(e)
                 self.log.info("re-starting main thread")
+
 
 
 sargs = Sargs()
@@ -280,4 +276,4 @@ def handle_co2_measurement(m):
     sargs.handle_co2_measurement(m)
 
 
-_thread.start_new_thread(Sargs.run_thread, (sargs,))
+_thread.start_new_thread(Sargs.run_main_thread, (sargs,))

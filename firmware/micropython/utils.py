@@ -5,10 +5,42 @@ from utime import sleep
 class LEDSignal(Signal):
 
     def ieslegt(self):
-        self.value(1)
+        self.on()
 
     def izslegt(self):
-        self.value(0)
+        self.off()
+
+
+class LEDPWMSignal(PWM):
+    on_duty = 1024
+
+    def __init__(self, pin, on_duty=1024):
+        super().__init__(pin)
+        self.init(freq=1000, duty=0)
+        self.on_duty = on_duty
+
+    def on(self):
+        self.duty(self.on_duty)
+
+    def off(self):
+        self.duty(0)
+
+    def value(self, *args):
+        if len(args) > 0:
+            # setter
+            if args[0]:
+                self.on()
+            else:
+                self.off()
+        else:
+            # getter
+            return self.duty() > 0
+
+    def ieslegt(self):
+        self.on()
+
+    def izslegt(self):
+        self.off()
 
 
 class Buzzer(PWM):
