@@ -64,7 +64,7 @@ fi
 green "Selected device to flash: $(echo "$DEVICE_LIST" | grep "$ESPTOOL_PORT")"
 
 # Specify the MicroPython firmware source.
-FIRMWARE_URL="https://micropython.org/resources/firmware/esp32-20210902-v1.17.bin"
+FIRMWARE_URL="https://micropython.org/resources/firmware/esp32-20220117-v1.18.bin"
 
 # Allow the firmware file path to be passed as the second argument to this script.
 FIRMWARE_FILE_NAME="${2:-$FIRMWARE_FILE_NAME}"
@@ -84,7 +84,8 @@ fi
 
 # Collect build
 [ ! -d "build" ] && mkdir build
-rm build/*
+# -f to ignore empty build dir
+rm -r build/*
 cp ../../firmware/micropython/*.py build/
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
@@ -106,7 +107,9 @@ while true; do
 done
 
 cyan_underlined "Copying scripts to device (4/5)"
-mpremote cp -r build/ :
+pushd build
+mpremote cp -r . :
+popd
 
 # Keep the meta of all devices flashed
 cyan_underlined "Registering device information (5/5)"
