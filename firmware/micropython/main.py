@@ -1,5 +1,6 @@
 import uasyncio
 from sargs import *
+import portal
 
 # Ekr膩na p膩rbaude
 SCREEN.text('Sveika, pasaule!', 0, 0, 1)
@@ -41,6 +42,7 @@ async def measurements():
 
 event_loop = uasyncio.get_event_loop()
 event_loop.create_task(measurements())
+portal.setup()
 
 try:
     event_loop.run_forever()
