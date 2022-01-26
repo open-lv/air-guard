@@ -1,3 +1,4 @@
+import uasyncio
 from sargs import *
 
 # Ekr膩na p膩rbaude
@@ -15,24 +16,33 @@ for p in reversed(pins):
     sleep(0.25)
 
 
-while True:
-    measurement = perform_co2_measurement()
-    handle_co2_measurement(measurement)
+async def measurements():
+    while True:
+        measurement = perform_co2_measurement()
+        handle_co2_measurement(measurement)
 
-    if measurement <= 1000:
-        LED_YELLOW.off()
-        LED_RED.off()
+        if measurement <= 1000:
+            LED_YELLOW.off()
+            LED_RED.off()
 
-        LED_GREEN.on()
-    elif measurement <= 1400:
-        LED_GREEN.off()
-        LED_RED.off()
+            LED_GREEN.on()
+        elif measurement <= 1400:
+            LED_GREEN.off()
+            LED_RED.off()
 
-        LED_YELLOW.on()
-    elif measurement > 1400:
-        LED_GREEN.off()
-        LED_YELLOW.off()
+            LED_YELLOW.on()
+        elif measurement > 1400:
+            LED_GREEN.off()
+            LED_YELLOW.off()
 
-        LED_RED.on()
+            LED_RED.on()
 
-    sleep(5)
+        await uasyncio.sleep(5)
+
+event_loop = uasyncio.get_event_loop()
+event_loop.create_task(measurements())
+
+try:
+    event_loop.run_forever()
+except KeyboardInterrupt:
+    event_loop.close()
