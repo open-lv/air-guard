@@ -87,6 +87,7 @@ fi
 # -f to ignore empty build dir
 rm -r build/*
 cp ../../firmware/micropython/*.py build/
+cp -r ../../firmware/micropython/static/ build/static/
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash
