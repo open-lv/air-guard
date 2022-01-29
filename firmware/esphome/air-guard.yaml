@@ -85,6 +85,11 @@ logger:
 # Enable Home Assistant API
 api:
   password: ""
+  services:
+    # Allow sensor calibration over the API.
+    - service: mhz19_calibrate_zero
+      then:
+        - mhz19.calibrate_zero: mhz19b_co2
 
 ota:
   password: ""
