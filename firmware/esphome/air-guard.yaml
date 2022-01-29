@@ -32,6 +32,7 @@ globals:
 
 sensor:
   - platform: mhz19
+    id: mhz19b_sensor
     co2:
       id: mhz19b_co2
       name: "MH-Z19B CO2 Value"
@@ -89,7 +90,7 @@ api:
     # Allow sensor calibration over the API.
     - service: mhz19_calibrate_zero
       then:
-        - mhz19.calibrate_zero: mhz19b_co2
+        - mhz19.calibrate_zero: mhz19b_sensor
 
 ota:
   password: ""
