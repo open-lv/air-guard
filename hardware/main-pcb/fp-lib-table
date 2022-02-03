@@ -2,4 +2,5 @@
   (lib (name footprints)(type KiCad)(uri ${KIPRJMOD}/footprints.pretty)(options "")(descr ""))
   (lib (name zahars-art)(type KiCad)(uri ${KIPRJMOD}/libs/zahars-art.pretty)(options "")(descr ""))
   (lib (name badgelife_sao_v169bis)(type KiCad)(uri ${KIPRJMOD}/libs/badgelife-parts-master/badgelife_sao_v169bis.pretty)(options "")(descr ""))
+  (lib (name ziedotaju-logo)(type KiCad)(uri ${KIPRJMOD}/ziedotaju-logo.pretty)(options "")(descr ""))
 )
