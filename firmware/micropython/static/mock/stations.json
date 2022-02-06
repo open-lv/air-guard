@@ -1,0 +1,23 @@
+[
+  {
+    "ssid": "ssid1",
+    "bssid": "00:00:00:00:00:01",
+    "channel": 1,
+    "authmode": "open",
+    "hidden": false
+  },
+  {
+    "ssid": "ssid2",
+    "bssid": "00:00:00:00:00:02",
+    "channel": 12,
+    "authmode": "wpa-psk",
+    "hidden": true
+  },
+  {
+    "ssid": "ssid3",
+    "bssid": "00:00:00:00:00:03",
+    "channel": 6,
+    "authmode": "wpa2-psk",
+    "hidden": false
+  }
+]

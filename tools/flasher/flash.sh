@@ -88,6 +88,7 @@ fi
 rm -r build/*
 cp ../../firmware/micropython/*.py build/
 cp -r ../../firmware/micropython/static/ build/static/
+sed -i "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash

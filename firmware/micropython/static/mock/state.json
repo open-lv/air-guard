@@ -1,0 +1,10 @@
+{
+  "co2": {
+    "ppm": -1,
+    "status": "AIR_QUALITY_UNKNOWN"
+  },
+  "wifi": {
+    "connected": false,
+    "internet": false
+  }
+}
