@@ -26,10 +26,10 @@ const submitData = (url, data) => {
 
 export default {
   fetchState: () => {
-    return loadData("state.json");
+    return loadData("api/state.json");
   },
   fetchStations: () => {
-    return loadData("stations.json");
+    return loadData("api/stations.json");
   },
   submitStation: (bssid, psk) => {
     submitData("select-station", { bssid, psk });

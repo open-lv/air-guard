@@ -4,6 +4,7 @@
     "bssid": "00:00:00:00:00:01",
     "channel": 1,
     "authmode": "open",
+
     "hidden": false
   },
   {
@@ -11,6 +12,7 @@
     "bssid": "00:00:00:00:00:02",
     "channel": 12,
     "authmode": "wpa-psk",
+    "rssi": -50,
     "hidden": true
   },
   {
@@ -18,6 +20,7 @@
     "bssid": "00:00:00:00:00:03",
     "channel": 6,
     "authmode": "wpa2-psk",
+    "rssi": -90,
     "hidden": false
   }
 ]

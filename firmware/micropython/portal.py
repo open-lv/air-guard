@@ -1,11 +1,63 @@
+import ujson as json
+
 import tinyweb
 import os
+import binascii
+
+from sargs import sargs
+
+
+def decode_station_authmode(authmode):
+    if authmode == 0:
+        return "open"
+    if authmode == 1:
+        return "wep"
+    if authmode == 2:
+        return "wpa-psk"
+    if authmode == 3:
+        return "wpa2-psk"
+    if authmode == 4:
+        return "wpa/wpa2-psk"
+    return "unknown"
 
 
 class Portal:
     # Create web server application
     is_running = False
     server = tinyweb.webserver()
+
+    @server.resource('/api/state.json')
+    def sargsState(self):
+        return {
+            "co2": {
+                "ppm": sargs.co2_measurement,
+                "status": "AIR_QUALITY_UNKNOWN"
+            },
+            "wifi": {
+                "connected": sargs.sta_if.isconnected(),
+                "internet": False
+            }
+        }
+
+    @server.resource('/api/stations.json')
+    async def stations(self):
+        stations = sargs.sta_if.scan()
+
+        yield "["
+        last_station = stations[-1]
+        for station in stations:
+            yield json.dumps({
+                "ssid": station[0],
+                "bssid": binascii.hexlify(station[1], b':'),
+                "channel": station[2],
+                "rssi": station[3],
+                "authmode": decode_station_authmode(station[4]),
+                "hidden": station[5]
+            })
+            if station != last_station:
+                yield ","
+
+        yield "]"
 
     async def serveStaticFile(request, response):
         path = request.path.decode()
