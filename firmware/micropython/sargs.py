@@ -1,16 +1,17 @@
-from machine import Pin, I2C, PWM, UART, Signal, ADC
 import logging
-import network
-from utime import sleep, ticks_ms
-import _thread
-import sys
-
-import ssd1306
+import mhz19
 import mqtt
+import network
+import sargsui
+import ssd1306
+import sys
+import time
+import uasyncio
+from machine import Pin, I2C, UART, ADC
 from umqtt.simple import MQTTException
 from utils import *
-import mhz19
-import sargsui
+from utime import ticks_ms
+
 logging.basicConfig(level=logging.DEBUG)
 
 HAND_BRIGHTNESS = 128
@@ -43,7 +44,7 @@ class Sargs:
     wifi_password = None
 
     # wifi housekeeping variables
-    wifi_connection_time = 0
+    wifi_connection_time = None
     wifi_post_connection_tasks_run = False
     sta_if = network.WLAN(network.STA_IF)
     ap_if = network.WLAN(network.AP_IF)
@@ -53,22 +54,27 @@ class Sargs:
     exit_requested = False
 
     def __init__(self):
-        self.ldr_adc.atten(ADC.ATTN_11DB)  # for some reason, specifying atten while creating ADC doesn't work
         self.log = logging.getLogger("sargs")
 
+    async def setup(self):
+        self.ldr_adc.atten(ADC.ATTN_11DB)  # for some reason, specifying atten while creating ADC doesn't work
+
+        self.log.info("Disabling WiFi interfaces")
         # disable WiFi interfaces
         self.ap_if.active(False)
         # disabling interface on startup helps with OSError Internal WiFi error when reconnecting
         self.sta_if.active(False)
 
         # initialize hardware
-        self._init_lcd()
-        self._init_co2_sensor()
+        self.log.info("Initializing hardware")
+        await self._init_lcd()
+        await self._init_co2_sensor()
 
         # initialize configuration from config.py
+        self.log.info("Initializing stored config")
         self._init_config()
 
-    def _init_lcd(self):
+    async def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
             self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
@@ -76,19 +82,19 @@ class Sargs:
                                       self.ldr_adc, self.led_left_eye, self.led_right_eye)
             self.log.info("LCD initialized")
         except OSError:
-            self.handle_lcd_fault()
+            await self.handle_lcd_fault()
 
-    def handle_lcd_fault(self):
+    async def handle_lcd_fault(self):
         self.exit_requested = True
         self.log.error("could not initialize LCD")
         for _ in range(30):
             self.led_red.on()
-            sleep(0.5)
+            await uasyncio.sleep(0.5)
             self.led_red.off()
-            sleep(0.5)
+            await uasyncio.sleep(0.5)
         sys.exit()
 
-    def _init_co2_sensor(self):
+    async def _init_co2_sensor(self):
         # I don't have the correct ESP32 module, and the module I'm using has UART2 pins connected to flash memory,
         # so I had to use UART1 -- this code will be removed once I get correct ESP32 module - RV
         from machine import unique_id
@@ -107,16 +113,16 @@ class Sargs:
                     break
             except mhz19.MHZ19Exception:
                 self.log.debug("re-trying CO2 sensor initialization...")
-                sleep(0.5)
+                await uasyncio.sleep(0.5)
 
         if not mhz_initialized:
-            self.handle_co2_sensor_fault()
+            await self.handle_co2_sensor_fault()
         else:
             # turn off ABC calibration, as it would be an optimistic assumption that classrooms reach 400ppm
             # in any given day
             self.co2_sensor.set_abc_state(False)
 
-    def handle_co2_sensor_fault(self):
+    async def handle_co2_sensor_fault(self):
         self.exit_requested = True
         self.log.error("CO2 sensor not responding")
         self.screen.fill(0)
@@ -125,9 +131,9 @@ class Sargs:
         self.screen.show()
         for _ in range(30):
             self.led_yellow.on()
-            sleep(0.5)
+            await uasyncio.sleep(0.5)
             self.led_yellow.off()
-            sleep(0.5)
+            await uasyncio.sleep(0.5)
         sys.exit()
 
     def _init_config(self):
@@ -157,7 +163,10 @@ class Sargs:
                 self.log.info("enabling WiFi")
                 self.sta_if.active(True)
 
-            if self.wifi_ssid and not self.sta_if.isconnected() and (ticks_ms() - self.wifi_connection_time) > 5000:
+            if self.wifi_ssid and not self.sta_if.isconnected() and (
+                    self.wifi_connection_time is None
+                    or time.ticks_diff(ticks_ms(), self.wifi_connection_time) > 5000
+            ):
                 self.wifi_connection_time = ticks_ms()
                 self.wifi_post_connection_tasks_run = False
                 self.log.info("connecting to WiFi AP: %s" % self.wifi_ssid)
@@ -191,7 +200,7 @@ class Sargs:
         except ImportError:
             self.log.info("mqtt requires valid configuration")
 
-    def run_screen(self):
+    async def run_screen(self):
         # update screen state
         if self.co2_sensor.sensor_warmed_up:
             self.ui.set_co2_measurement(self.co2_measurement)
@@ -216,11 +225,11 @@ class Sargs:
         if self.ui.calibration_requested:
             self.log.info("holding sensor calibration pin low")
             self.pin_co2_calibrate.value(0)
-            sleep(10)
+            await uasyncio.sleep(10)
             self.pin_co2_calibrate.value(1)
             self.ui.select_main_screen()
 
-    def run_main_thread(self):
+    async def run(self):
         """
         This task is executed in the context of a thread that's separate from main.py.
         It should handle re-drawing screen, handling WiFi status polling, 
@@ -229,15 +238,15 @@ class Sargs:
         self.log.info("starting background thread, waiting for user main thread to start")
         self.buzzer.duty(0)
         while not self.user_main_loop_started and not self.exit_requested:
-            sleep(0.1)
+            await uasyncio.sleep(0.1)
         self.log.info("background thread started")
-        self.buzzer.startup_beep()
+        # self.buzzer.startup_beep()
         while not self.exit_requested:
             try:
                 while not self.exit_requested:
-                    self.run_screen()
+                    await self.run_screen()
                     self.run_wifi()
-                    sleep(0.03)
+                    await uasyncio.sleep(0.03)
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
                 self.exit_requested = True
@@ -250,30 +259,19 @@ class Sargs:
                 self.log.info("re-starting main thread")
 
 
-
 sargs = Sargs()
 
-for a in ['led_red', 'led_green', 'led_yellow', 'led_right_eye', 'led_left_eye', 'screen', 'co2_sensor']:
-    globals()[a.upper()] = getattr(sargs, a)
 
-
-def perform_co2_measurement():
+async def perform_co2_measurement():
     # @TODO: Handle repeated hecksum errors here
     sargs.user_main_loop_started = True
-    heating_start_time = ticks_ms()
+    heating_start_time = time.ticks_ms()
     measurement = None
-    while (ticks_ms() - heating_start_time) < 120 * 1000:
+    while (time.ticks_diff(time.ticks_ms(), heating_start_time)) < 120 * 1000:
         measurement = sargs.co2_sensor.get_co2_reading()
         if measurement is not None:
             return measurement
-        sleep(1)
+        await uasyncio.sleep(1)
 
     if measurement is None:
-        sargs.handle_co2_sensor_fault()
-
-
-def handle_co2_measurement(m):
-    sargs.handle_co2_measurement(m)
-
-
-_thread.start_new_thread(Sargs.run_main_thread, (sargs,))
+        await sargs.handle_co2_sensor_fault()
