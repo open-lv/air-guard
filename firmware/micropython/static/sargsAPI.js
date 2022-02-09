@@ -2,7 +2,7 @@ const mock = true;
 
 const loadData = (url) => {
   if (mock) {
-    url = "mock/" + url;
+    url = "mock/" + url + ".json";
   }
 
   return fetch(url).then((res) => res.json());
@@ -26,10 +26,10 @@ const submitData = (url, data) => {
 
 export default {
   fetchState: () => {
-    return loadData("api/state.json");
+    return loadData("api/state");
   },
   fetchStations: () => {
-    return loadData("api/stations.json");
+    return loadData("api/stations");
   },
   submitStation: (bssid, psk) => {
     submitData("select-station", { bssid, psk });

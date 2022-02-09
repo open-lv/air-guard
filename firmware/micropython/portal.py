@@ -26,7 +26,7 @@ class Portal:
     is_running = False
     server = tinyweb.webserver()
 
-    @server.resource('/api/state.json')
+    @server.resource('/api/state')
     def sargsState(self):
         return {
             "co2": {
@@ -39,7 +39,7 @@ class Portal:
             }
         }
 
-    @server.resource('/api/stations.json')
+    @server.resource('/api/stations')
     async def stations(self):
         stations = sargs.sta_if.scan()
 
