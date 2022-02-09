@@ -92,6 +92,9 @@ rm -r build/static/mock/
 sed -i "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
 gzip -r build/static/*
 
+cyan_underlined "Erasing ESP32 flash (1/5)"
+esptool.py --chip esp32 erase_flash
+
 cyan_underlined "Flashing micropython firmware (2/5)"
 esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME"
 
