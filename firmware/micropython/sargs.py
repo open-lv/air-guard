@@ -240,7 +240,7 @@ class Sargs:
         while not self.user_main_loop_started and not self.exit_requested:
             await uasyncio.sleep(0.1)
         self.log.info("background thread started")
-        # self.buzzer.startup_beep()
+        self.buzzer.startup_beep()
         while not self.exit_requested:
             try:
                 while not self.exit_requested:
