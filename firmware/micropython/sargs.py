@@ -165,7 +165,7 @@ class Sargs:
 
             if self.wifi_ssid and not self.sta_if.isconnected() and (
                     self.wifi_connection_time is None
-                    or time.ticks_diff(ticks_ms(), self.wifi_connection_time) > 5000
+                    or (ticks_ms() - self.wifi_connection_time) > 5000
             ):
                 self.wifi_connection_time = ticks_ms()
                 self.wifi_post_connection_tasks_run = False
@@ -240,7 +240,7 @@ class Sargs:
         while not self.user_main_loop_started and not self.exit_requested:
             await uasyncio.sleep(0.1)
         self.log.info("background thread started")
-        self.buzzer.startup_beep()
+        await self.buzzer.startup_beep()
         while not self.exit_requested:
             try:
                 while not self.exit_requested:
@@ -267,7 +267,7 @@ async def perform_co2_measurement():
     sargs.user_main_loop_started = True
     heating_start_time = time.ticks_ms()
     measurement = None
-    while (time.ticks_diff(time.ticks_ms(), heating_start_time)) < 120 * 1000:
+    while (time.ticks_ms() - heating_start_time) < 120 * 1000:
         measurement = sargs.co2_sensor.get_co2_reading()
         if measurement is not None:
             return measurement

@@ -1,5 +1,5 @@
 import logging
-from utime import ticks_ms, sleep
+from utime import ticks_ms
 import math
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around

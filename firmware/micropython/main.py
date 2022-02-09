@@ -42,7 +42,7 @@ async def setup():
     pins = [sargs.led_green, sargs.led_yellow, sargs.led_red, sargs.led_right_eye, sargs.led_left_eye]
     for p in pins:
         p.on()
-        sleep(0.25)
+        await uasyncio.sleep(0.25)
     await uasyncio.sleep(1)
     for p in reversed(pins):
         p.off()
