@@ -20,6 +20,12 @@ if ! [ -x "$(command -v "mpremote")" ]; then
   exit 1
 fi
 
+# jq is required.
+if ! [ -x "$(command -v "jq")" ]; then
+  red "ERROR: jq not found! See https://stedolan.github.io/jq/"
+  exit 1
+fi
+
 DEVICE_LIST="$(mpremote connect list)"
 
 if [ -z "$DEVICE_LIST" ]; then
@@ -63,18 +69,21 @@ fi
 
 green "Selected device to flash: $(echo "$DEVICE_LIST" | grep "$ESPTOOL_PORT")"
 
-# Specify the MicroPython firmware source.
-FIRMWARE_URL="https://micropython.org/resources/firmware/esp32-20220117-v1.18.bin"
-
 # Allow the firmware file path to be passed as the second argument to this script.
 FIRMWARE_FILE_NAME="${2:-$FIRMWARE_FILE_NAME}"
 if [ -z "$FIRMWARE_FILE_NAME" ]; then
-  FIRMWARE_FILE_NAME="${FIRMWARE_URL##*/}"
+  yellow "Firmware filename not supplied, auto-detecting..."
+  RELEASES_JSON=$(curl -s https://api.github.com/repos/open-lv/micropython/releases/latest)
+  LATEST_VERSION="$(echo "$RELEASES_JSON" | jq ".tag_name" | cut -d '"' -f 2)"
+  LATEST_VERSION_DOWNLOAD_URL="$(echo "$RELEASES_JSON" | jq ".assets[] | select(.name==\"esp32-airguard-micropython.bin\") | .url" | cut -d '"' -f 2)"
+  FIRMWARE_FILE_NAME="esp32-airguard-micropython-${LATEST_VERSION}.bin"
 fi
 
 # Download the firmware if not found.
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
-  curl --remote-name --location "$FIRMWARE_URL"
+  yellow "Firmware binaries not found"
+  yellow "Downloading latest firmware ${LATEST_VERSION}: https://github.com/open-lv/micropython/releases/latest"
+  curl -s "$LATEST_VERSION_DOWNLOAD_URL" --output "$FIRMWARE_FILE_NAME"
 fi
 
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
