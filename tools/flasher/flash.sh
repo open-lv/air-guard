@@ -75,15 +75,15 @@ if [ -z "$FIRMWARE_FILE_NAME" ]; then
   yellow "Firmware filename not supplied, auto-detecting..."
   RELEASES_JSON=$(curl -s https://api.github.com/repos/open-lv/micropython/releases/latest)
   LATEST_VERSION="$(echo "$RELEASES_JSON" | jq ".tag_name" | cut -d '"' -f 2)"
-  LATEST_VERSION_DOWNLOAD_URL="$(echo "$RELEASES_JSON" | jq ".assets[] | select(.name==\"esp32-airguard-micropython.bin\") | .url" | cut -d '"' -f 2)"
-  FIRMWARE_FILE_NAME="esp32-airguard-micropython-${LATEST_VERSION}.bin"
+  LATEST_VERSION_DOWNLOAD_URL="$(echo "$RELEASES_JSON" | jq ".assets[] | select(.name==\"esp32-airguard-firmware.bin\") | .browser_download_url" | cut -d '"' -f 2)"
+  FIRMWARE_FILE_NAME="esp32-airguard-firmware-${LATEST_VERSION}.bin"
 fi
 
 # Download the firmware if not found.
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
   yellow "Firmware binaries not found"
   yellow "Downloading latest firmware ${LATEST_VERSION}: https://github.com/open-lv/micropython/releases/latest"
-  curl -s "$LATEST_VERSION_DOWNLOAD_URL" --output "$FIRMWARE_FILE_NAME"
+  curl -L -s "$LATEST_VERSION_DOWNLOAD_URL" --output "$FIRMWARE_FILE_NAME"
 fi
 
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
@@ -91,6 +91,7 @@ if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
   exit 1
 fi
 
+green "Using firmware binary: $FIRMWARE_FILE_NAME"
 # Collect build
 [ ! -d "build" ] && mkdir build
 # -f to ignore empty build dir
