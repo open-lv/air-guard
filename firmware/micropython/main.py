@@ -35,8 +35,8 @@ async def setup():
 
     log.info("Animating Screen and LEDs")
     # Ekrāna pārbaude
-    sargs.screen.text('Sveika, pasaule!', 0, 0, 1)
-    sargs.screen.show()
+    sargs.screen.drawText(20, 21, 'Sveika, pasaule!')
+    sargs.screen.flush()
 
     # Pārbaude pēc ieslēgšanās: ieslēdzam visas gaismas diodes pēc kārtas un pēc tam izslēdzam tās
     pins = [sargs.led_green, sargs.led_yellow, sargs.led_red, sargs.led_right_eye, sargs.led_left_eye]

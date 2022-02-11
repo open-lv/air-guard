@@ -276,14 +276,14 @@ class SargsUI:
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
                                               [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
 
-        self.screen.fill(0)
+        self.screen.drawFill(0)
         screen_fn_map = {
             ScreenState.MAIN_SCREEN: self.draw_main_screen,
             ScreenState.CALIBRATION_SCREEN: self.draw_calibration_screen,
         }
         if self.current_screen in screen_fn_map.keys():
             screen_fn_map[self.current_screen]()
-        self.screen.show()
+        self.screen.flush()
 
         # if CO2 level has just become high
         if self.co2_level == CO2Level.HIGH and self.prev_co2_level != self.co2_level:
@@ -300,17 +300,22 @@ class SargsUI:
             self.select_cal_screen()
 
         if self.co2_measurement is None:
-            self.screen.text("Sensors uzsilst", 0, 0)
+            self.screen.drawText(0, 0, "Sensors uzsilst")
         else:
-            self.screen.text("CO2: %d ppm" % self.co2_measurement, 0, 0)
+            self.screen.drawText(0, 0, "CO2: %d ppm" % self.co2_measurement)
 
         if self.co2_level not in self.CO2_LEVEL_DESC.keys():
             raise SargsUIException("Invalid CO2 level provided: %s" % (str(self.co2_level)))
-        self.screen.text(self.CO2_LEVEL_DESC[self.co2_level], 0, 20)
+        self.screen.drawText(0, 20, self.CO2_LEVEL_DESC[self.co2_level])
 
         if self.wifi_state not in self.WIFI_STATE_DESC.keys():
             raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
-        self.screen.text("Wi-Fi: %s" % self.WIFI_STATE_DESC[self.wifi_state], 0, 40)
+        self.screen.drawText(0, 40, "Wi-Fi: %s" % self.WIFI_STATE_DESC[self.wifi_state])
+
+    def draw_hcenter_text(self, y, text):
+        """Draws a horizontally centered line of text at specified offset from top"""
+        x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
+        self.screen.drawText(x, y, text)
 
     def draw_calibration_screen(self):
 
@@ -347,18 +352,20 @@ class SargsUI:
                     self.select_main_screen()
 
         if not self.calibration_requested:
-            self.screen.text("    Vai sakt", 0, 5)
-            self.screen.text("  kalibraciju?", 0, 25)
+            self.draw_hcenter_text(5, "Vai sakt")
+            self.draw_hcenter_text(25, "kalibraciju?")
 
             sel_btn = self.cal_sel_btn  # 1 = no, 2 = yes
-            btn_pos = {1: (10, 48, 20, 12, 1),
-                       2: (98, 48, 20, 12, 1)}
-
-            self.screen.framebuf.rect(*btn_pos[sel_btn])
-            self.screen.text("Ne", 12, 50)
-            self.screen.text("Ja", 100, 50)
+            self.draw_button(10, 45, "Ne", sel_btn == 1)
+            self.draw_button(100, 45, "Ja", sel_btn == 2)
         else:
             self.log.info("user-requested calibration initiated")
-            self.screen.text("   Kalibracija", 0, 5)
-            self.screen.text("    uzsakta!", 0, 25)
+            self.draw_hcenter_text(5, "Kalibracija")
+            self.draw_hcenter_text(25, "uzsakta!")
             # sargs.py will return screen to main screen once it processes the calibration_requested flag
+
+    def draw_button(self, x, y, text, selected):
+        self.screen.drawText(x + 3, y + 3, text)
+        if selected:
+            self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,
+                                 self.screen.getTextHeight(text) + 7, False, 0xffffff)

@@ -3,7 +3,6 @@ import mhz19
 import mqtt
 import network
 import sargsui
-import ssd1306
 import sys
 import time
 import uasyncio
@@ -13,6 +12,15 @@ from utils import *
 from utime import ticks_ms
 
 logging.basicConfig(level=logging.DEBUG)
+
+try:
+    import display
+except ImportError:
+    l = logging.getLogger("sargs")
+    l.error("cannot import display module. Most likely, you are running mainline micropython firmware")
+    l.error("Please see https://github.com/open-lv/micropython")
+    time.sleep(5)
+    sys.exit(1)
 
 HAND_BRIGHTNESS = 128
 EYE_BRIGHTNESS = 128
@@ -77,9 +85,12 @@ class Sargs:
     async def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
-            self.screen = ssd1306.SSD1306_I2C(128, 64, I2C(0, sda=self.pin_lcd_data, scl=self.pin_lcd_clock))
+            self.screen = display
+            self.screen.drawFill(0)
+            self.screen.flush()
             self.ui = sargsui.SargsUI(self.screen, self.btn_arm, self.buzzer,
                                       self.ldr_adc, self.led_left_eye, self.led_right_eye)
+
             self.log.info("LCD initialized")
         except OSError:
             await self.handle_lcd_fault()
@@ -125,10 +136,10 @@ class Sargs:
     async def handle_co2_sensor_fault(self):
         self.exit_requested = True
         self.log.error("CO2 sensor not responding")
-        self.screen.fill(0)
-        self.screen.text("  CO2 sensors", 0, 20)
-        self.screen.text("    neatbild!", 0, 30)
-        self.screen.show()
+        self.screen.drawFill(0)
+        self.screen.drawText(0, 20, "  CO2 sensors")
+        self.screen.drawText(0, 30, "    neatbild!")
+        self.screen.flush()
         for _ in range(30):
             self.led_yellow.on()
             await uasyncio.sleep(0.5)
