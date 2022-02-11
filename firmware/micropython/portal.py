@@ -26,6 +26,10 @@ class Portal:
     is_running = False
     server = tinyweb.webserver()
 
+    @server.route('/')
+    async def index(request, response):
+        await response.send_file('static/index.html.gz', content_type="text/html; charset=UTF-8", content_encoding="gzip")
+
     @server.resource('/api/state')
     def sargsState(self):
         return {
@@ -96,10 +100,6 @@ def add_static_routes(portal, dir="static"):
         path = "{0}/{1}".format(base_path, record)[:-3]
         print("Adding static route: {0}".format(path))
         portal.server.add_route(path, Portal.serveStaticFile)
-
-        if path == '/index.html':
-            print("Adding default `/` route to index.html")
-            portal.server.add_route('/', Portal.serveStaticFile)
 
 
 def setup():
