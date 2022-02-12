@@ -11,7 +11,7 @@ from umqtt.simple import MQTTException
 from utils import *
 from utime import ticks_ms
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 try:
     import display
@@ -215,6 +215,7 @@ class Sargs:
         # update screen state
         if self.co2_sensor.sensor_warmed_up:
             self.ui.set_co2_measurement(self.co2_measurement)
+            self.ui.set_temperature_measurement(self.co2_sensor.get_cached_temperature_reading())
             if self.led_red.value():
                 level = sargsui.CO2Level.HIGH
             elif self.led_yellow.value():

@@ -1,9 +1,10 @@
+import uasyncio
+
 import logging
-from utime import ticks_ms
-import math
+from utime import ticks_ms, sleep_ms
+from utils import ButtonEventHandler, EyeAnimation
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
-
 
 class WiFiState:
     UNCONFIGURED = 1
@@ -19,179 +20,26 @@ class CO2Level:
 
 
 class ScreenState:
+    INIT_SCREEN = 0
     MAIN_SCREEN = 1
     CALIBRATION_SCREEN = 2
-    SCREEN_END = 3
+    INTRO_SCREEN = 3
+    WARMUP_SCREEN = 4
+    OPEN_WINDOW_SCREEN = 5
+    LARGE_PPM_SCREEN = 6
+    SCREEN_END = 7
 
 
 class SargsUIException(Exception):
     pass
 
 
-class ButtonEventHandler:
-    """"""
-    signal = None
-    DEBOUNCE_TIME_MS = 10
-    LONG_PRESS_TIME_MS = 5000
-    posedge_debounce_time = 0
-    posedge_state = False
-    negedge_state = False
-    negedge_debounce_time = 0
-    negedge_on_latched = False
-    longpress_start_time = 0
-    longpress_on_latched = False
-    longpress_state = False
-
-    def __init__(self, signal):
-        self.signal = signal
-        self.log = logging.getLogger("btn")
-
-    def posedge(self):
-        """Returns True for one invocation after positive edge has been detected"""
-        on = self.signal.value()
-        if on and not self.posedge_state:
-            self.posedge_state = True
-            self.posedge_debounce_time = ticks_ms()
-            return True
-        elif not on and self.posedge_state and (ticks_ms() - self.posedge_debounce_time) > self.DEBOUNCE_TIME_MS:
-            self.posedge_state = False
-
-        return False
-
-    def negedge(self):
-        """Returns True for one invocation after negative edge has been detected"""
-        on = self.signal.value()
-
-        if on and not self.negedge_on_latched:
-            self.negedge_debounce_time = ticks_ms()
-            self.negedge_on_latched = True
-            self.negedge_state = False
-
-        if not on and self.negedge_on_latched and (ticks_ms() - self.negedge_debounce_time) > self.DEBOUNCE_TIME_MS:
-            self.negedge_on_latched = False
-            if not self.negedge_state:
-                self.negedge_state = True
-                return True
-
-        return False
-
-    def longpress(self):
-        """Returns True for one invocation after a long press has been detected"""
-        on = self.signal.value()
-        if on and not self.longpress_on_latched:
-            self.longpress_on_latched = True
-            self.longpress_state = False
-            self.longpress_start_time = ticks_ms()
-
-        elif on and self.longpress_on_latched and (ticks_ms() - self.longpress_start_time) > self.LONG_PRESS_TIME_MS:
-            if not self.longpress_state:
-                self.longpress_state = True
-                return True
-        elif not on and (ticks_ms() - self.longpress_start_time) > self.DEBOUNCE_TIME_MS:
-            self.longpress_on_latched = False
-            self.longpress_state = False
-
-        return False
-
-
-# fade in/out animation max brightness
-FM = 512
-# fade in/out animation step size per tick
-FS = 48
-
-
-class EyeAnimation:
-    """Handles animation of eye brightnesses.
-    Expected usage:
-    anim = EyeAnimation(pwm_left, pwm_right, [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
-    while anim.tick():
-        pass
-
-    Of course, tick() can be called periodically- it returns True if animation is still in progress and False
-    if animation has finished
-    """
-
-    FADE_IN = 1
-    FADE_OUT = 2
-    LEFT_TO_RIGHT = 3
-    RIGHT_TO_LEFT = 4
-
-    _l = None
-    _r = None
-    _anim = None
-    _anim_tick = 0
-    _anim_max_tick = 0
-    _curr_anim = 0
-
-    # list of (left, right) duty cycles for each animation step
-    _anim_seq = []
-
-    # fade in animation- fades both eyes in
-    # exponential curve
-    _FADE_IN_SEQ = list(map(lambda x: int(math.pow(FM, x/FM)), range(0, FM, FS))) + [FM]
-    _FADE_IN_ANIM = list(zip(_FADE_IN_SEQ, _FADE_IN_SEQ))
-
-    _FADE_OUT_SEQ = list(map(lambda x: int(math.pow(FM, x/FM)), range(FM, 0, -FS))) + [0]
-
-    # fade out animation- fades both eyes out
-    _FADE_OUT_ANIM = list(zip(_FADE_OUT_SEQ, _FADE_OUT_SEQ))
-    _EMPTY_SEQ = [0] * 5
-    _FULL_SEQ = [FM] * 5
-
-    _LEFT_TO_RIGHT_ANIM = list(zip(
-        _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ + _EMPTY_SEQ,
-        _EMPTY_SEQ + _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ
-    )) + [(0, 0)]
-    _RIGHT_TO_LEFT_ANIM = list(zip(
-        _EMPTY_SEQ + _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ,
-        _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ + _EMPTY_SEQ,
-    )) + [(0, 0)]
-
-    _ANIM_MAP = {
-        FADE_IN: _FADE_IN_ANIM,
-        FADE_OUT: _FADE_OUT_ANIM,
-        LEFT_TO_RIGHT: _LEFT_TO_RIGHT_ANIM,
-        RIGHT_TO_LEFT: _RIGHT_TO_LEFT_ANIM
-    }
-
-    def __init__(self, l, r, anim):
-        self.l = l
-        self.r = r
-        if type(anim) is list:
-            self.anim = anim
-        else:
-            self.anim = [anim]
-        self.advance()
-
-    def advance(self):
-        self._anim_tick = 0
-        if self._curr_anim < len(self.anim):
-            anim = self.anim[self._curr_anim]
-            self._curr_anim += 1
-            if anim in self._ANIM_MAP.keys():
-                self._anim_seq = self._ANIM_MAP[anim]
-                self._anim_max_tick = len(self._anim_seq)
-                return True
-            else:
-                logging.getLogger("main").error("unknown animation")
-                return False
-        return False
-
-    def tick(self):
-        if self._anim_tick < self._anim_max_tick:
-            v = self._anim_seq[self._anim_tick]
-            self.l.duty(v[0])
-            self.r.duty(v[1])
-            self._anim_tick += 1
-            return True
-        return self.advance()
-
-
 class SargsUI:
     co2_measurement = None
+    temperature_measurement = None
     co2_level = CO2Level.UNKNOWN
     wifi_state = WiFiState.UNCONFIGURED
-    current_screen = ScreenState.MAIN_SCREEN
+    current_screen = ScreenState.INIT_SCREEN
     calibration_requested = False
     WIFI_STATE_DESC = {
         WiFiState.UNCONFIGURED: "nav konf.",
@@ -220,6 +68,7 @@ class SargsUI:
     HIGH_CO2_ALERT_DEBOUNCE_MS = 5 * 60 * 1000
     high_co2_alert_time = 0
     prev_co2_level = CO2Level.LOW
+    frame_display_ms = 50
 
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
         self.log = logging.getLogger("screen")
@@ -234,6 +83,9 @@ class SargsUI:
 
     def set_co2_measurement(self, m):
         self.co2_measurement = m
+
+    def set_temperature_measurement(self, m):
+        self.temperature_measurement = m
 
     def set_wifi_state(self, s):
         self.wifi_state = s
@@ -278,8 +130,13 @@ class SargsUI:
 
         self.screen.drawFill(0)
         screen_fn_map = {
+            ScreenState.INIT_SCREEN: self.draw_init_screen,
             ScreenState.MAIN_SCREEN: self.draw_main_screen,
             ScreenState.CALIBRATION_SCREEN: self.draw_calibration_screen,
+            ScreenState.INTRO_SCREEN: self.draw_intro_screen,
+            ScreenState.WARMUP_SCREEN: self.draw_warmup_screen,
+            ScreenState.OPEN_WINDOW_SCREEN: self.draw_open_window_screen,
+            ScreenState.LARGE_PPM_SCREEN: self.draw_large_ppm_screen
         }
         if self.current_screen in screen_fn_map.keys():
             screen_fn_map[self.current_screen]()
@@ -289,28 +146,140 @@ class SargsUI:
         if self.co2_level == CO2Level.HIGH and self.prev_co2_level != self.co2_level:
             # end we haven't alerted for some time
             if (ticks_ms() - self.high_co2_alert_time) > self.HIGH_CO2_ALERT_DEBOUNCE_MS:
+                self.log.info("high co2 level alert triggered")
                 self.buzzer.high_co2_level_alert()
                 self.high_co2_alert_time = ticks_ms()
         self.prev_co2_level = self.co2_level
 
+        if self.frame_display_ms > 0:
+            sleep_ms(self.frame_display_ms)
+
+    init_screen_frame = 0
+    def draw_init_screen(self):
+        explosion_range = list(range(0, 11))
+        fn = "/assets/splash/intro%d.png" % explosion_range[self.init_screen_frame]
+        self.screen.drawPng(0, 0, fn)
+        self.init_screen_frame += 1
+        if self.init_screen_frame == len(explosion_range):
+            self.screen.flush()
+            sleep_ms(1000)
+            self.init_screen_frame = 0
+            self.current_screen = ScreenState.INTRO_SCREEN
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_IN])
+
+
+    intro_screen_frame = 0
+    def draw_intro_screen(self):
+        # don't do anything until eye animation finishes
+        if self.eye_animation:
+            return
+        intro_range = list(range(11, 25)) + [0]
+        fn = "/assets/splash/intro%d.png" % intro_range[self.intro_screen_frame]
+        self.screen.drawPng(0, 0, fn)
+        self.intro_screen_frame += 1
+        if self.intro_screen_frame == len(intro_range):
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_OUT])
+            self.intro_screen_frame = 0
+            self.current_screen = ScreenState.WARMUP_SCREEN
+
+    heart_frame = 0
+    heart_next_ticks_ms = 0
+    h_range = list(reversed(list(range(1, 5))))
     def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
             self.buzzer.short_beep()
             self.log.info("switching to cal screen")
             self.select_cal_screen()
 
-        if self.co2_measurement is None:
-            self.screen.drawText(0, 0, "Sensors uzsilst")
+        self.screen.drawText(58, -5, "%d C" % self.temperature_measurement, 0xffffff, "graphik_bold16", 1, 1)
+        ppm_t = str(self.co2_measurement)
+        self.screen.drawText(54, 20, ppm_t, 0xffffff, "graphik_bold20", 1, 1)
+        self.screen.drawText(0, 37, "PPM", 0xffffff, "graphik_bold12", 1, 1)
+
+        fn = "/assets/beating-heart/sirds%d.png" % self.h_range[self.heart_frame]
+        self.screen.drawPng(0, 0, fn)
+        if self.heart_next_ticks_ms == 0:
+            self.heart_next_ticks_ms = ticks_ms() + 50
+
+        heart_periods_ms = {
+            CO2Level.LOW: 700,
+            CO2Level.UNKNOWN: 700,
+            CO2Level.MEDIUM: 600,
+            CO2Level.HIGH: 500,
+        }
+        if ticks_ms() > self.heart_next_ticks_ms:
+            self.heart_frame += 1
+        if self.heart_frame == len(self.h_range):
+            self.heart_frame = 0
+            self.heart_next_ticks_ms += heart_periods_ms[self.co2_level]
         else:
-            self.screen.drawText(0, 0, "CO2: %d ppm" % self.co2_measurement)
+            self.heart_next_ticks_ms += 50
+
+        if self.co2_level == CO2Level.MEDIUM or self.co2_level == CO2Level.HIGH:
+            self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
+            self.buzzer.short_beep()
+            self.frame_display_ms = 50
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
+                                              [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
+
 
         if self.co2_level not in self.CO2_LEVEL_DESC.keys():
             raise SargsUIException("Invalid CO2 level provided: %s" % (str(self.co2_level)))
-        self.screen.drawText(0, 20, self.CO2_LEVEL_DESC[self.co2_level])
 
         if self.wifi_state not in self.WIFI_STATE_DESC.keys():
             raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
-        self.screen.drawText(0, 40, "Wi-Fi: %s" % self.WIFI_STATE_DESC[self.wifi_state])
+
+    warmup_frame = 0
+    def draw_warmup_screen(self):
+        f_range = list(range(0, 15))
+        fn = "/assets/self-test/selftest%d.png" % f_range[self.warmup_frame]
+        self.screen.drawPng(0, 0, fn)
+        self.warmup_frame += 1
+        if self.warmup_frame == len(f_range):
+            self.warmup_frame = 0
+
+        if self.co2_measurement is not None:
+            self.select_main_screen()
+            self.frame_display_ms = 0
+
+    open_window_frame = 0
+    open_window_range = list(range(0, 27))
+    def draw_open_window_screen(self):
+        fn = "/assets/open-window/open%d.png" % self.open_window_range[self.open_window_frame]
+        self.screen.drawPng(0, 0, fn)
+        self.open_window_frame += 1
+
+        if self.open_window_frame == len(self.open_window_range):
+            self.buzzer.short_beep()
+            self.current_screen = ScreenState.LARGE_PPM_SCREEN
+            self.open_window_frame = 0
+            self.large_ppm_enter_ticks_ms = ticks_ms()
+            self.frame_display_ms = 300
+
+
+    large_ppm_enter_ticks_ms = 0
+    large_ppm_ctr = 0
+    def draw_large_ppm_screen(self):
+        ppm_t = str(self.co2_measurement)
+        idx = self.large_ppm_ctr % 2
+        self.large_ppm_ctr += 1
+
+        fonts = ["graphik_bold16", "graphik_bold20"]
+        x = (self.screen.width() - self.screen.getTextWidth(ppm_t, fonts[idx])) // 2
+        y = (self.screen.height() - self.screen.getTextHeight(ppm_t, fonts[idx])) // 2 - 5
+
+        self.screen.drawText(x, y, ppm_t, 0xffffff, fonts[idx])
+
+        if self.co2_level == CO2Level.LOW:
+            self.buzzer.short_beep()
+            self.select_main_screen()
+            self.frame_display_ms = 0
+        elif ticks_ms() > (self.large_ppm_enter_ticks_ms + 20 * 1000):
+            self.buzzer.short_beep()
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
+                                              [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
+            self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
+            self.frame_display_ms = 50
 
     def draw_hcenter_text(self, y, text):
         """Draws a horizontally centered line of text at specified offset from top"""
