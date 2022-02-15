@@ -1,8 +1,7 @@
-import uasyncio
-
 import logging
 from utime import ticks_ms, sleep_ms
 from utils import ButtonEventHandler, EyeAnimation
+
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
 
@@ -119,7 +118,7 @@ class SargsUI:
                                                       [EyeAnimation.LEFT_TO_RIGHT, EyeAnimation.RIGHT_TO_LEFT])
             del self.ldr_measurements[0]
 
-    def update(self):
+    async def update(self):
         self.process_ldr()
         if self.eye_animation and not self.eye_animation.tick():
             self.eye_animation = None
@@ -139,7 +138,7 @@ class SargsUI:
             ScreenState.LARGE_PPM_SCREEN: self.draw_large_ppm_screen
         }
         if self.current_screen in screen_fn_map.keys():
-            screen_fn_map[self.current_screen]()
+            await screen_fn_map[self.current_screen]()
         self.screen.flush()
 
         # if CO2 level has just become high
@@ -155,7 +154,8 @@ class SargsUI:
             sleep_ms(self.frame_display_ms)
 
     init_screen_frame = 0
-    def draw_init_screen(self):
+
+    async def draw_init_screen(self):
         explosion_range = list(range(0, 11))
         fn = "/assets/splash/intro%d.png" % explosion_range[self.init_screen_frame]
         self.screen.drawPng(0, 0, fn)
@@ -167,9 +167,9 @@ class SargsUI:
             self.current_screen = ScreenState.INTRO_SCREEN
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_IN])
 
-
     intro_screen_frame = 0
-    def draw_intro_screen(self):
+
+    async def draw_intro_screen(self):
         # don't do anything until eye animation finishes
         if self.eye_animation:
             return
@@ -185,7 +185,8 @@ class SargsUI:
     heart_frame = 0
     heart_next_ticks_ms = 0
     h_range = list(reversed(list(range(1, 5))))
-    def draw_main_screen(self):
+
+    async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
             self.buzzer.short_beep()
             self.log.info("switching to cal screen")
@@ -222,7 +223,6 @@ class SargsUI:
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
                                               [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
 
-
         if self.co2_level not in self.CO2_LEVEL_DESC.keys():
             raise SargsUIException("Invalid CO2 level provided: %s" % (str(self.co2_level)))
 
@@ -230,7 +230,8 @@ class SargsUI:
             raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
 
     warmup_frame = 0
-    def draw_warmup_screen(self):
+
+    async def draw_warmup_screen(self):
         f_range = list(range(0, 15))
         fn = "/assets/self-test/selftest%d.png" % f_range[self.warmup_frame]
         self.screen.drawPng(0, 0, fn)
@@ -244,7 +245,8 @@ class SargsUI:
 
     open_window_frame = 0
     open_window_range = list(range(0, 27))
-    def draw_open_window_screen(self):
+
+    async def draw_open_window_screen(self):
         fn = "/assets/open-window/open%d.png" % self.open_window_range[self.open_window_frame]
         self.screen.drawPng(0, 0, fn)
         self.open_window_frame += 1
@@ -256,10 +258,10 @@ class SargsUI:
             self.large_ppm_enter_ticks_ms = ticks_ms()
             self.frame_display_ms = 300
 
-
     large_ppm_enter_ticks_ms = 0
     large_ppm_ctr = 0
-    def draw_large_ppm_screen(self):
+
+    async def draw_large_ppm_screen(self):
         ppm_t = str(self.co2_measurement)
         idx = self.large_ppm_ctr % 2
         self.large_ppm_ctr += 1
@@ -281,12 +283,12 @@ class SargsUI:
             self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
             self.frame_display_ms = 50
 
-    def draw_hcenter_text(self, y, text):
+    async def draw_hcenter_text(self, y, text):
         """Draws a horizontally centered line of text at specified offset from top"""
         x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
         self.screen.drawText(x, y, text)
 
-    def draw_calibration_screen(self):
+    async def draw_calibration_screen(self):
 
         # don't react to the negative edge of the long-press that was used to enter this screen
         if self.cal_screen_negedge_count == 0 and self.cal_screen_btn_handler.negedge():
@@ -321,19 +323,19 @@ class SargsUI:
                     self.select_main_screen()
 
         if not self.calibration_requested:
-            self.draw_hcenter_text(5, "Vai sakt")
-            self.draw_hcenter_text(25, "kalibraciju?")
+            await self.draw_hcenter_text(5, "Vai sakt")
+            await self.draw_hcenter_text(25, "kalibraciju?")
 
             sel_btn = self.cal_sel_btn  # 1 = no, 2 = yes
-            self.draw_button(10, 45, "Ne", sel_btn == 1)
-            self.draw_button(100, 45, "Ja", sel_btn == 2)
+            await self.draw_button(10, 45, "Ne", sel_btn == 1)
+            await self.draw_button(100, 45, "Ja", sel_btn == 2)
         else:
             self.log.info("user-requested calibration initiated")
-            self.draw_hcenter_text(5, "Kalibracija")
-            self.draw_hcenter_text(25, "uzsakta!")
+            await self.draw_hcenter_text(5, "Kalibracija")
+            await self.draw_hcenter_text(25, "uzsakta!")
             # sargs.py will return screen to main screen once it processes the calibration_requested flag
 
-    def draw_button(self, x, y, text, selected):
+    async def draw_button(self, x, y, text, selected):
         self.screen.drawText(x + 3, y + 3, text)
         if selected:
             self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,

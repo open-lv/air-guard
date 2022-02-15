@@ -232,7 +232,7 @@ class Sargs:
             wifi_state = sargsui.WiFiState.UNCONFIGURED
         self.ui.set_wifi_state(wifi_state)
 
-        self.ui.update()
+        await self.ui.update()
 
         if self.ui.calibration_requested:
             self.log.info("holding sensor calibration pin low")
