@@ -95,7 +95,7 @@ green "Using firmware binary: $FIRMWARE_FILE_NAME"
 # Collect build
 [ ! -d "build" ] && mkdir build
 # -f to ignore empty build dir
-rm -r build/*
+rm -rf build/*
 cp ../../firmware/micropython/*.py build/
 cp -r ../../firmware/micropython/static/ build/static/
 rm -r build/static/mock/
