@@ -1,6 +1,6 @@
 import logging
 from utime import ticks_ms, sleep_ms
-from utils import ButtonEventHandler, EyeAnimation
+from utils import ButtonEventHandler, EyeAnimation, Buzzer
 
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
@@ -71,7 +71,7 @@ class SargsUI:
 
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
         self.log = logging.getLogger("screen")
-        self.buzzer = buzzer
+        self.buzzer: Buzzer = buzzer
         self.screen = screen
         self.btn_signal = btn_signal
         self.ldr = ldr
@@ -146,7 +146,7 @@ class SargsUI:
             # end we haven't alerted for some time
             if (ticks_ms() - self.high_co2_alert_time) > self.HIGH_CO2_ALERT_DEBOUNCE_MS:
                 self.log.info("high co2 level alert triggered")
-                self.buzzer.high_co2_level_alert()
+                await self.buzzer.high_co2_level_alert()
                 self.high_co2_alert_time = ticks_ms()
         self.prev_co2_level = self.co2_level
 
@@ -188,7 +188,7 @@ class SargsUI:
 
     async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
-            self.buzzer.short_beep()
+            await self.buzzer.short_beep()
             self.log.info("switching to cal screen")
             self.select_cal_screen()
 
@@ -218,7 +218,7 @@ class SargsUI:
 
         if self.co2_level == CO2Level.MEDIUM or self.co2_level == CO2Level.HIGH:
             self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
-            self.buzzer.short_beep()
+            await self.buzzer.short_beep()
             self.frame_display_ms = 50
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
                                               [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
@@ -252,7 +252,7 @@ class SargsUI:
         self.open_window_frame += 1
 
         if self.open_window_frame == len(self.open_window_range):
-            self.buzzer.short_beep()
+            await self.buzzer.short_beep()
             self.current_screen = ScreenState.LARGE_PPM_SCREEN
             self.open_window_frame = 0
             self.large_ppm_enter_ticks_ms = ticks_ms()
@@ -273,11 +273,11 @@ class SargsUI:
         self.screen.drawText(x, y, ppm_t, 0xffffff, fonts[idx])
 
         if self.co2_level == CO2Level.LOW:
-            self.buzzer.short_beep()
+            await self.buzzer.short_beep()
             self.select_main_screen()
             self.frame_display_ms = 0
         elif ticks_ms() > (self.large_ppm_enter_ticks_ms + 20 * 1000):
-            self.buzzer.short_beep()
+            await self.buzzer.short_beep()
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
                                               [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
             self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
@@ -303,7 +303,7 @@ class SargsUI:
         if not self.calibration_requested and self.cal_screen_negedge_count > 0:
             # select yes/no on button release
             if self.cal_screen_btn_handler.negedge():
-                self.buzzer.short_beep()
+                await self.buzzer.short_beep()
                 self.cal_screen_act_time = ticks_ms()
                 self.cal_sel_btn += 1
                 if self.cal_sel_btn == 3:
@@ -315,10 +315,10 @@ class SargsUI:
                     self.log.info("user cal requested")
                     self.calibration_requested = True
                     self.cal_screen_act_time = ticks_ms()
-                    self.buzzer.long_beep()
+                    await self.buzzer.long_beep()
                 else:
                     # no btn selected, go back to main screen
-                    self.buzzer.short_beep()
+                    await self.buzzer.short_beep()
                     self.log.info("returning to main screen due to no button")
                     self.select_main_screen()
 
