@@ -1,5 +1,6 @@
 import logging
-from utime import ticks_ms, sleep_ms
+import uasyncio
+from utime import ticks_ms
 from utils import ButtonEventHandler, EyeAnimation, Buzzer
 
 
@@ -151,7 +152,7 @@ class SargsUI:
         self.prev_co2_level = self.co2_level
 
         if self.frame_display_ms > 0:
-            sleep_ms(self.frame_display_ms)
+            await uasyncio.sleep_ms(self.frame_display_ms)
 
     init_screen_frame = 0
 
@@ -162,7 +163,7 @@ class SargsUI:
         self.init_screen_frame += 1
         if self.init_screen_frame == len(explosion_range):
             self.screen.flush()
-            sleep_ms(1000)
+            await uasyncio.sleep_ms(1000)
             self.init_screen_frame = 0
             self.current_screen = ScreenState.INTRO_SCREEN
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_IN])
