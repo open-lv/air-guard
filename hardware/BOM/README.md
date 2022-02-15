@@ -1,0 +1,1 @@
+Refer to the README of each PCB / hardware root for BOM
