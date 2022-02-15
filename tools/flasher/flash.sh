@@ -97,6 +97,7 @@ green "Using firmware binary: $FIRMWARE_FILE_NAME"
 # -f to ignore empty build dir
 rm -rf build/*
 cp ../../firmware/micropython/*.py build/
+cp -r ../../firmware/micropython/assets/ build/assets/
 cp -r ../../firmware/micropython/static/ build/static/
 rm -r build/static/mock/
 sed -i "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
