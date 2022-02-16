@@ -235,7 +235,7 @@ class SargsUI:
     warmup_frame = 0
 
     async def draw_warmup_screen(self):
-        f_range = list(range(0, 15))
+        f_range = list(range(0, 12))
         fn = "/assets/self-test/selftest%d.png" % f_range[self.warmup_frame]
         self.screen.drawPng(0, 0, fn)
         self.warmup_frame += 1
