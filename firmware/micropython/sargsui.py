@@ -174,7 +174,7 @@ class SargsUI:
         # don't do anything until eye animation finishes
         if self.eye_animation:
             return
-        intro_range = list(range(11, 25)) + [0]
+        intro_range = list(range(11, 34)) + [0]
         fn = "/assets/splash/intro%d.png" % intro_range[self.intro_screen_frame]
         self.screen.drawPng(0, 0, fn)
         self.intro_screen_frame += 1
