@@ -38,7 +38,8 @@ async def setup():
     log.info("mem_free=%d" % gc.mem_free())
     log.info("Animating Screen and LEDs")
     # Ekrāna pārbaude
-    sargs.screen.drawText(20, 21, 'Sveika, pasaule!')
+    sargs.screen.drawText(20, 21, 'GAISA SARGS')
+    sargs.screen.drawText(30, 31, 'VERSIJA XXX')
     sargs.screen.flush()
 
     log.info("mem_free=%d" % gc.mem_free())
