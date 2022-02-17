@@ -46,6 +46,7 @@ if [ -n "$ESPTOOL_PORT" ]; then
 else
   yellow "ESPTOOL_PORT empty, auto-detecting device port..."
 
+  # Allow user to pick a port if multiple found.
   if [ "$(echo "$DEVICE_LIST" | wc -l)" -gt "1" ]; then
     yellow "Found more than single serial device."
     echo
@@ -57,15 +58,19 @@ else
       exit 1
     fi
 
-    SELECTED_DEVICE="$(echo "$DEVICE_LIST" | sed -n "$REPLY"p)"
-    if [ -z "$SELECTED_DEVICE" ]; then
+    ESPTOOL_PORT="$(echo "$DEVICE_PORTS_LIST" | sed -n "$REPLY"p)"
+    if [ -z "$ESPTOOL_PORT" ]; then
       red "Invalid device selected. Exiting"
       exit 1
     fi
   else
+    # Select the first and only port detected.
     ESPTOOL_PORT="$(echo "$DEVICE_PORTS_LIST" | head -1)"
   fi
 fi
+
+# Make it available as an environment variable.
+export ESPTOOL_PORT="$ESPTOOL_PORT"
 
 green "Selected device to flash: $(echo "$DEVICE_LIST" | grep "$ESPTOOL_PORT")"
 
