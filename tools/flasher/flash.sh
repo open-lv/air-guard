@@ -100,7 +100,7 @@ cp ../../firmware/micropython/*.py build/
 cp -r ../../firmware/micropython/assets/ build/assets/
 cp -r ../../firmware/micropython/static/ build/static/
 rm -r build/static/mock/
-sed -i "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
+sed -i'' -e "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
 gzip -r build/static/*
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
