@@ -109,8 +109,8 @@ sed -i'' -e "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.j
 gzip -r build/static/*
 
 # create a version file
-VER=`git describe`
-echo "VERSION='$VER'" > build/airguardversion.py
+AIRGUARD_VERSION=`git describe`
+echo "VERSION='$AIRGUARD_VERSION'" > build/airguardversion.py
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash
@@ -137,9 +137,11 @@ popd
 
 # Keep the meta of all devices flashed
 cyan_underlined "Registering device information (5/5)"
-mpremote run ./register-device.py >devices-flashed.txt
-esptool.py run
+# carriage return needs to be trimmed
+DEVINFO=`mpremote run ./register-device.py | sed "s/\r$//"`
+echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.txt
 
+esptool.py run
 SCRIPT_END="$(date +%s)"
 
 echo
