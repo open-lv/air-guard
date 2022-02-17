@@ -115,13 +115,6 @@ class Sargs:
         sys.exit()
 
     async def _init_co2_sensor(self):
-        # I don't have the correct ESP32 module, and the module I'm using has UART2 pins connected to flash memory,
-        # so I had to use UART1 -- this code will be removed once I get correct ESP32 module - RV
-        from machine import unique_id
-        if unique_id() == b"\xd8\xa0\x1d\x65\x27\x60":
-            self.log.info("ESP32-D4 detected, using UART 1")
-            self.co2_sensor_uart = 1
-
         # initializing sensor can also fail (not present, damaged)- try to verify and blink yellow led if failed
         mhz_initialized = False
 
