@@ -343,3 +343,22 @@ class SargsUI:
         if selected:
             self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,
                                  self.screen.getTextHeight(text) + 7, False, 0xffffff)
+
+#     TODO - replace current main view with this, current main view as second / third smth view
+
+#     ###### VIEW1 ##### LARGE BEATING HEART + PPM
+
+#     display.drawPng(0,0,'/liela-sirds1.png')
+#     ##^^liela-sirds1 to liela-sirds4 // speed bpm
+
+#     display.drawPng(49,46,'/ppmw10.png')
+#     display.drawText(24, 2, "908", 0x000000, "graphik_bold20", 1, 1)
+#     ##centered dynamically
+
+#     display.drawText(58, 0, "24", 0xFFFFFF, "7x5", 1, 1)
+#     display.drawCircle(72, 1, 1, 0, 360, False, 0xFFFFFF)
+#     ##degrees C
+
+#     ###### END OF VIEW1 ##### LARGE BEATING HEART + PPM
+
+
