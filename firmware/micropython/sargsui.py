@@ -70,6 +70,13 @@ class SargsUI:
     prev_co2_level = CO2Level.LOW
     frame_display_ms = 50
 
+    HEARTBEAT_PERIODS_MS = {
+        CO2Level.LOW: 700,
+        CO2Level.UNKNOWN: 700,
+        CO2Level.MEDIUM: 600,
+        CO2Level.HIGH: 500,
+    }
+
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
         self.log = logging.getLogger("screen")
         self.buzzer: Buzzer = buzzer
@@ -186,13 +193,37 @@ class SargsUI:
     heart_frame = 0
     heart_next_ticks_ms = 0
     h_range = list(reversed(list(range(1, 5))))
+    main_selected_subscreen = 0
+    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen"]
 
     async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
             await self.buzzer.short_beep()
             self.log.info("switching to cal screen")
             self.select_cal_screen()
+        elif self.main_screen_btn_handler.negedge():
+            await self.buzzer.short_beep()
+            self.main_selected_subscreen += 1
+            if self.main_selected_subscreen == len(self.main_subscreens):
+                self.main_selected_subscreen = 0
 
+        if self.co2_level == CO2Level.MEDIUM or self.co2_level == CO2Level.HIGH:
+            self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
+            await self.buzzer.short_beep()
+            self.frame_display_ms = 50
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
+                                          [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
+
+        if self.co2_level not in self.CO2_LEVEL_DESC.keys():
+            raise SargsUIException("Invalid CO2 level provided: %s" % (str(self.co2_level)))
+
+        if self.wifi_state not in self.WIFI_STATE_DESC.keys():
+            raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
+
+        subscreen_fn = getattr(self, self.main_subscreens[self.main_selected_subscreen])
+        await subscreen_fn()
+
+    async def draw_main_small_heart_screen(self):
         # temperature with degree symbol
         temp_num = str(self.temperature_measurement)
         temp_text = temp_num + " C"
@@ -215,32 +246,14 @@ class SargsUI:
         if self.heart_next_ticks_ms == 0:
             self.heart_next_ticks_ms = ticks_ms() + 50
 
-        heart_periods_ms = {
-            CO2Level.LOW: 700,
-            CO2Level.UNKNOWN: 700,
-            CO2Level.MEDIUM: 600,
-            CO2Level.HIGH: 500,
-        }
+
         if ticks_ms() > self.heart_next_ticks_ms:
             self.heart_frame += 1
         if self.heart_frame == len(self.h_range):
             self.heart_frame = 0
-            self.heart_next_ticks_ms += heart_periods_ms[self.co2_level]
+            self.heart_next_ticks_ms += self.HEARTBEAT_PERIODS_MS[self.co2_level]
         else:
             self.heart_next_ticks_ms += 50
-
-        if self.co2_level == CO2Level.MEDIUM or self.co2_level == CO2Level.HIGH:
-            self.current_screen = ScreenState.OPEN_WINDOW_SCREEN
-            await self.buzzer.short_beep()
-            self.frame_display_ms = 50
-            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
-                                              [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
-
-        if self.co2_level not in self.CO2_LEVEL_DESC.keys():
-            raise SargsUIException("Invalid CO2 level provided: %s" % (str(self.co2_level)))
-
-        if self.wifi_state not in self.WIFI_STATE_DESC.keys():
-            raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
 
     warmup_frame = 0
 
@@ -356,19 +369,38 @@ class SargsUI:
 
 #     TODO - replace current main view with this, current main view as second / third smth view
 
-#     ###### VIEW1 ##### LARGE BEATING HEART + PPM
+    large_heart_frame = 0
+    large_heart_range = list(range(1, 5))
+    large_heart_next_ticks_ms = 0
+    async def draw_main_large_heart_screen(self):
+        """"
+        ###### VIEW1 ##### LARGE BEATING HEART + PPM
+        """
 
-#     display.drawPng(0,0,'/liela-sirds1.png')
-#     ##^^liela-sirds1 to liela-sirds4 // speed bpm
+        fn = "/assets/beating-heart/liela-sirds%d.png" % self.large_heart_range[self.large_heart_frame]
+        self.screen.drawPng(0, 0, fn)
+        if self.large_heart_next_ticks_ms == 0:
+            self.large_heart_next_ticks_ms = ticks_ms() + 50
 
-#     display.drawPng(49,46,'/ppmw10.png')
-#     display.drawText(24, 2, "908", 0x000000, "graphik_bold20", 1, 1)
-#     ##centered dynamically
+        if ticks_ms() > self.large_heart_next_ticks_ms:
+            self.large_heart_frame += 1
+        if self.large_heart_frame == len(self.large_heart_range):
+            self.large_heart_frame = 0
+            self.large_heart_next_ticks_ms += self.HEARTBEAT_PERIODS_MS[self.co2_level]
+        else:
+            self.large_heart_next_ticks_ms += 50
 
-#     display.drawText(58, 0, "24", 0xFFFFFF, "7x5", 1, 1)
-#     display.drawCircle(72, 1, 1, 0, 360, False, 0xFFFFFF)
-#     ##degrees C
+        self.screen.drawPng(49, 46, '/assets/ppm/ppmw10.png')
+        ppm_text = str(self.co2_measurement)
+        ppm_font = "graphik_bold20"
+        ppm_text_w = self.screen.getTextWidth(ppm_text, ppm_font)
+        self.screen.drawText((self.screen.width() - ppm_text_w) // 2, 2, ppm_text, 0x000000, ppm_font, 1, 1)
 
-#     ###### END OF VIEW1 ##### LARGE BEATING HEART + PPM
+        temp_text = str(self.temperature_measurement)
+        temp_font = "7x5"
+        temp_text_w = self.screen.getTextWidth(temp_text, temp_font)
+        temp_x = 58
+        self.screen.drawText(temp_x, 0, temp_text, 0xFFFFFF, temp_font, 1, 1)
+        self.screen.drawCircle(temp_x + temp_text_w + 2 , 1, 1, 0, 360, False, 0xFFFFFF)
 
 
