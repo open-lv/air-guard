@@ -193,12 +193,22 @@ class SargsUI:
             self.log.info("switching to cal screen")
             self.select_cal_screen()
 
-        self.screen.drawText(58, -11, "%d C" % self.temperature_measurement, 0xffffff, "graphik_bold16", 1, 1)
-        self.screen.drawCircle(102, 3, 3, 0, 360, False, 0xFFFFFF)
+        # temperature with degree symbol
+        temp_num = str(self.temperature_measurement)
+        temp_text = temp_num + " C"
+        temp_font = "graphik_bold16"
+        temp_x = 58
+        self.screen.drawText(temp_x, -11, temp_text, 0xffffff, temp_font, 1, 1)
+        # position of degree symbol based on displayed value
+        deg_x = temp_x + self.screen.getTextWidth(temp_num, temp_font) + 3
+        self.screen.drawCircle(deg_x, 3, 3, 0, 360, False, 0xFFFFFF)
+
+        # CO2 sensor measurement
         ppm_t = str(self.co2_measurement)
         self.screen.drawText(48, 20, ppm_t, 0xffffff, "graphik_bold20", 1, 1)
-        #self.screen.drawText(0, 37, "PPM", 0xffffff, "graphik_bold12", 1, 1)
-        self.screen.drawPng(0,47,'/assets/ppm/ppm17.png')
+
+        # PPM text
+        self.screen.drawPng(0, 47, '/assets/ppm/ppm17.png')
 
         fn = "/assets/beating-heart/sirds%d.png" % self.h_range[self.heart_frame]
         self.screen.drawPng(0, 0, fn)
