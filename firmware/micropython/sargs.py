@@ -61,8 +61,17 @@ class Sargs:
 
     exit_requested = False
 
+    version = "XXX"
+
     def __init__(self):
         self.log = logging.getLogger("sargs")
+
+        # flash.sh/release process stores version in airguardversion.py file
+        try:
+            import airguardversion
+            self.version = airguardversion.VERSION
+        except ImportError:
+            pass
 
     async def setup(self):
         self.ldr_adc.atten(ADC.ATTN_11DB)  # for some reason, specifying atten while creating ADC doesn't work
@@ -240,6 +249,11 @@ class Sargs:
             await uasyncio.sleep(10)
             self.pin_co2_calibrate.value(1)
             self.ui.select_main_screen()
+
+    async def draw_centered_text(self, y, text):
+        """Draws a horizontally centered line of text at specified offset from top"""
+        x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
+        self.screen.drawText(x, y, text)
 
     async def run(self):
         """

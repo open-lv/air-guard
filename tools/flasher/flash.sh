@@ -108,6 +108,10 @@ rm -r build/static/mock/
 sed -i'' -e "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
 gzip -r build/static/*
 
+# create a version file
+VER=`git describe`
+echo "VERSION='$VER'" > build/airguardversion.py
+
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash
 
