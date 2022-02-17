@@ -3,23 +3,59 @@ import sargsAPI from "../sargsAPI.js";
 export default {
   name: "HomeComponent",
   template: `<div class="row">
-    <select v-model="selected">
-      <option v-for="station in stations" v-bind:value="station">
-        {{ station.ssid }} ({{ station.bssid }}) {{ station.authmode !== 'open'
-        ? '🔒' : 'Atvērts' }}
-      </option>
-    </select>
-    <input v-model="psk" />
-    <button
-      :disabled="!selected"
-      class="btn btn-primary"
-      @click="submitStation"
-    >
-      Izvēlēties
-    </button>
-    <button class="btn btn-secondary" @click="reload">
-      Izvēlēties
-    </button>
+    <div v-if="loading" class="col-12">
+      <div class="content bg-light text-center">
+        Notiek ielāde...
+      </div>
+    </div>
+    <div class="col-3" v-if="!loading">
+      <div class="side-panel bg-light">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">
+            <b>Statuss:</b> nav savienots
+          </li>
+          <li class="list-group-item">
+            <b>SSID:</b> nav izvēlēts
+          </li>
+          <li class="list-group-item">
+            <b>Internets:</b> nav sasniedzams
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-9" v-if="!loading">
+      <div class="content bg-light">
+        <div class="form-group">
+          <label for="ssid">SSID:</label>
+          <div class="input-group">
+            <select v-model="selected" id="ssid" class="form-control">
+              <option v-for="station in stations" v-bind:value="station" v-bind:disabled="station.authmode === 'unknown'">
+                {{ station.ssid }} ({{ station.bssid }}) {{ station.authmode !== 'open' ? '🔒' : 'Atvērts' }}
+              </option>
+            </select>
+            <div class="input-group-append">
+              <button @click="reload" class="form-control btn btn-secondary">
+                Atjaunot
+              </button>
+            </div>
+          </div>
+          <small class="form-text text-muted">Tava WiFi nosaukums</small>
+        </div>
+        <div class="form-group">
+          <label for="ssid">Parole:</label>
+          <input v-model="psk" id="psk" class="form-control" />
+        </div>
+        <div class="form-group">
+          <button
+            :disabled="!selected"
+            class="btn btn-primary"
+            @click="submitStation"
+          >
+            Saglabāt
+          </button>
+        </div>
+      </div>
+    </div>
   </div> `,
   data: () => {
     return {
