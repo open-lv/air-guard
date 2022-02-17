@@ -138,6 +138,7 @@ popd
 # Keep the meta of all devices flashed
 cyan_underlined "Registering device information (5/5)"
 mpremote run ./register-device.py >devices-flashed.txt
+esptool.py run
 
 SCRIPT_END="$(date +%s)"
 
