@@ -20,6 +20,9 @@ def decode_station_authmode(authmode):
         return "wpa/wpa2-psk"
     return "unknown"
 
+def can_access_internet():
+    return False
+
 
 class Portal:
     # Create web server application
@@ -32,14 +35,18 @@ class Portal:
 
     @server.resource('/api/state')
     def sargsState(self):
+        is_connected = sargs.sta_if.isconnected()
+        is_internet = can_access_internet() if is_connected else False
+
         return {
             "co2": {
                 "ppm": sargs.co2_measurement,
                 "status": "AIR_QUALITY_UNKNOWN"
             },
             "wifi": {
-                "connected": sargs.sta_if.isconnected(),
-                "internet": False
+                "connected": is_connected,
+                "internet": is_internet,
+                "ssid": sargs.wifi_ssid,
             }
         }
 

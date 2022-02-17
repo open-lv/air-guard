@@ -12,13 +12,13 @@ export default {
       <div class="side-panel bg-light">
         <ul class="list-group list-group-flush">
           <li class="list-group-item">
-            <b>Statuss:</b> nav savienots
+            <b>Statuss:</b> {{ wifiState.connected ? "Savienots" : "Nav savienots" }}
           </li>
           <li class="list-group-item">
-            <b>SSID:</b> nav izvēlēts
+            <b>SSID:</b> {{ wifiState.ssid ? wifiState.ssid : "Nav izvēlēts" }}
           </li>
           <li class="list-group-item">
-            <b>Internets:</b> nav sasniedzams
+            <b>Internets:</b> {{ wifiState.internet ? "Sasniedzams" : "Nav sasniedzams" }}
           </li>
         </ul>
       </div>
@@ -28,13 +28,13 @@ export default {
         <div class="form-group">
           <label for="ssid">SSID:</label>
           <div class="input-group">
-            <select v-model="selected" id="ssid" class="form-control">
-              <option v-for="station in stations" v-bind:value="station" v-bind:disabled="station.authmode === 'unknown'">
+            <select v-model="selected" :disabled="loadingStations" id="ssid" class="form-control">
+              <option v-for="station in stations" v-bind:value="station" :disabled="station.authmode === 'unknown'">
                 {{ station.ssid }} ({{ station.bssid }}) {{ station.authmode !== 'open' ? '🔒' : 'Atvērts' }}
               </option>
             </select>
             <div class="input-group-append">
-              <button @click="reload" class="form-control btn btn-secondary">
+              <button @click="loadStations" :disabled="loadingStations" class="form-control btn btn-secondary">
                 Atjaunot
               </button>
             </div>
@@ -47,7 +47,7 @@ export default {
         </div>
         <div class="form-group">
           <button
-            :disabled="!selected"
+            :disabled="!selected || loadingStations"
             class="btn btn-primary"
             @click="submitStation"
           >
@@ -73,15 +73,23 @@ export default {
       try {
         this.loading = true;
         this.stations = null;
-        this.stations = await sargsAPI.fetchStations();
         this.wifiState = (await sargsAPI.fetchState()).wifi;
         this.loading = false;
       } catch (e) {
         alert(`Notikusi neparedzēta kļūda: ${e}`);
       }
+
+      this.loadStations();
     },
-    async reload() {
-      this.getDataFromApi();
+    async loadStations() {
+      try {
+        this.loadingStations = true;
+        this.stations = null;
+        this.stations = await sargsAPI.fetchStations();
+        this.loadingStations = false;
+      } catch (e) {
+        alert(`Notikusi neparedzēta kļūda: ${e}`);
+      }
     },
     async submitStation() {
       if (this.retrier) {
