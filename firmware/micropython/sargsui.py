@@ -1,4 +1,6 @@
 import logging
+import random
+
 import uasyncio
 from utime import ticks_ms
 from utils import ButtonEventHandler, EyeAnimation, Buzzer
@@ -71,10 +73,10 @@ class SargsUI:
     frame_display_ms = 50
 
     HEARTBEAT_PERIODS_MS = {
-        CO2Level.LOW: 700,
-        CO2Level.UNKNOWN: 700,
-        CO2Level.MEDIUM: 600,
-        CO2Level.HIGH: 500,
+        CO2Level.LOW: 500,
+        CO2Level.UNKNOWN: 500,
+        CO2Level.MEDIUM: 400,
+        CO2Level.HIGH: 300,
     }
 
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
@@ -85,6 +87,10 @@ class SargsUI:
         self.ldr = ldr
         self.led_left_eye = left_eye
         self.led_right_eye = right_eye
+
+        self.led_left_eye.on()
+        self.led_right_eye.on()
+
         self.main_screen_btn_handler = ButtonEventHandler(self.btn_signal)
         self.cal_screen_btn_handler = ButtonEventHandler(self.btn_signal)
 
@@ -103,6 +109,7 @@ class SargsUI:
     def select_main_screen(self):
         self.current_screen = ScreenState.MAIN_SCREEN
         self.calibration_requested = False
+        self.frame_display_ms = 0
 
     def select_cal_screen(self):
         self.cal_screen_negedge_count = 0
@@ -121,19 +128,39 @@ class SargsUI:
             buf = list(map(lambda x: x - mean, buf))
             # detect peaks of at least X% of the measuring range
             if max(buf) > 0.05 * 4096:
-                if self.eye_animation is None:
-                    self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
-                                                      [EyeAnimation.LEFT_TO_RIGHT, EyeAnimation.RIGHT_TO_LEFT])
+                self.trigger_random_eye_animation()
             del self.ldr_measurements[0]
 
+    def trigger_random_eye_animation(self):
+        if self.eye_animation is None:
+            choices = [EyeAnimation.LEFT_TO_RIGHT, EyeAnimation.RIGHT_TO_LEFT, EyeAnimation.BLINK]
+            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, random.choice(choices))
+
+    eye_next_blink_ticks_ms = 0
     async def update(self):
         self.process_ldr()
         if self.eye_animation and not self.eye_animation.tick():
             self.eye_animation = None
 
-        if self.eye_animation is None and self.btn_signal.value():
-            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
-                                              [EyeAnimation.FADE_IN, EyeAnimation.FADE_OUT])
+        if self.eye_animation is None:
+            if self.btn_signal.value():
+                self.trigger_random_eye_animation()
+            elif ticks_ms() > self.eye_next_blink_ticks_ms:
+                # choose a random animation for ~1/4 of the blinks
+                if random.random() < 0.25:
+                    self.trigger_random_eye_animation()
+                else:
+                    self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
+                                                  [EyeAnimation.BLINK])
+                # blink an average of 12x per min with slight variance
+                mean_blinks_per_min = 12
+                mean_blink_period = 60000 / mean_blinks_per_min
+                blink_dev = mean_blink_period * 0.1
+                self.eye_next_blink_ticks_ms = ticks_ms() + random.randint(
+                    int(mean_blink_period - blink_dev), int(mean_blink_period + blink_dev))
+        else:
+            # reset the next blink time while animation is in progress
+            self.eye_next_blink_ticks_ms = ticks_ms() + 5000
 
         self.screen.drawFill(0)
         screen_fn_map = {
@@ -186,13 +213,9 @@ class SargsUI:
         self.screen.drawPng(0, 0, fn)
         self.intro_screen_frame += 1
         if self.intro_screen_frame == len(intro_range):
-            self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_OUT])
             self.intro_screen_frame = 0
             self.current_screen = ScreenState.WARMUP_SCREEN
 
-    heart_frame = 0
-    heart_next_ticks_ms = 0
-    h_range = list(reversed(list(range(1, 5))))
     main_selected_subscreen = 0
     main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen", "draw_credits_screen"]
 
@@ -223,6 +246,11 @@ class SargsUI:
         subscreen_fn = getattr(self, self.main_subscreens[self.main_selected_subscreen])
         await subscreen_fn()
 
+
+    heart_frame = 0
+    heart_next_ticks_ms = 0
+    h_range = list(reversed(list(range(1, 5))))
+
     async def draw_main_small_heart_screen(self):
         # temperature with degree symbol
         temp_num = str(self.temperature_measurement)
@@ -243,17 +271,14 @@ class SargsUI:
 
         fn = "/assets/beating-heart/sirds%d.png" % self.h_range[self.heart_frame]
         self.screen.drawPng(0, 0, fn)
-        if self.heart_next_ticks_ms == 0:
-            self.heart_next_ticks_ms = ticks_ms() + 50
-
 
         if ticks_ms() > self.heart_next_ticks_ms:
             self.heart_frame += 1
-        if self.heart_frame == len(self.h_range):
-            self.heart_frame = 0
-            self.heart_next_ticks_ms += self.HEARTBEAT_PERIODS_MS[self.co2_level]
-        else:
-            self.heart_next_ticks_ms += 50
+            if self.heart_frame == len(self.h_range):
+                self.heart_frame = 0
+                self.heart_next_ticks_ms = ticks_ms() + self.HEARTBEAT_PERIODS_MS[self.co2_level]
+            else:
+                self.heart_next_ticks_ms = ticks_ms() + 50
 
     warmup_frame = 0
 
@@ -267,7 +292,6 @@ class SargsUI:
 
         if self.co2_measurement is not None:
             self.select_main_screen()
-            self.frame_display_ms = 0
 
     open_window_frame = 0
     open_window_range = list(range(0, 27))
@@ -301,7 +325,6 @@ class SargsUI:
         if self.co2_level == CO2Level.LOW:
             await self.buzzer.short_beep()
             self.select_main_screen()
-            self.frame_display_ms = 0
         elif ticks_ms() > (self.large_ppm_enter_ticks_ms + 20 * 1000):
             await self.buzzer.short_beep()
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye,
@@ -379,16 +402,14 @@ class SargsUI:
 
         fn = "/assets/beating-heart/liela-sirds%d.png" % self.large_heart_range[self.large_heart_frame]
         self.screen.drawPng(0, 0, fn)
-        if self.large_heart_next_ticks_ms == 0:
-            self.large_heart_next_ticks_ms = ticks_ms() + 50
 
         if ticks_ms() > self.large_heart_next_ticks_ms:
             self.large_heart_frame += 1
-        if self.large_heart_frame == len(self.large_heart_range):
-            self.large_heart_frame = 0
-            self.large_heart_next_ticks_ms += self.HEARTBEAT_PERIODS_MS[self.co2_level]
-        else:
-            self.large_heart_next_ticks_ms += 50
+            if self.large_heart_frame == len(self.large_heart_range):
+                self.large_heart_frame = 0
+                self.large_heart_next_ticks_ms = ticks_ms() + self.HEARTBEAT_PERIODS_MS[self.co2_level]
+            else:
+                self.large_heart_next_ticks_ms = ticks_ms() + 50
 
         self.screen.drawPng(49, 46, '/assets/ppm/ppmw10.png')
         ppm_text = str(self.co2_measurement)

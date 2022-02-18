@@ -15,9 +15,9 @@ class LEDSignal(Signal):
 
 
 class LEDPWMSignal(PWM):
-    on_duty = 1024
+    on_duty = 1023
 
-    def __init__(self, pin, on_duty=1024):
+    def __init__(self, pin, on_duty=1023):
         super().__init__(pin)
         self.init(freq=1000, duty=0)
         self.on_duty = on_duty
@@ -72,7 +72,7 @@ class Buzzer(PWM):
         self.duty(0)
 
     async def high_co2_level_alert(self):
-        logging.getLogger("buzzer").info("high co2 level")
+        logging.getLogger("buzzer").info("high co2th level")
         for i in range(3):
             self.duty(512)
             await uasyncio.sleep(1.5)
@@ -151,9 +151,12 @@ class ButtonEventHandler:
 
 
 # fade in/out animation max brightness
-FM = 512
+FMAX = 1023
+FMID = 256
+FMIN = 128
+
 # fade in/out animation step size per tick
-FS = 48
+FS = 256
 
 
 class EyeAnimation:
@@ -171,6 +174,7 @@ class EyeAnimation:
     FADE_OUT = 2
     LEFT_TO_RIGHT = 3
     RIGHT_TO_LEFT = 4
+    BLINK = 5
 
     _l = None
     _r = None
@@ -184,30 +188,31 @@ class EyeAnimation:
 
     # fade in animation- fades both eyes in
     # exponential curve
-    _FADE_IN_SEQ = list(map(lambda x: int(math.pow(FM, x/FM)), range(0, FM, FS))) + [FM]
+    _FADE_IN_SEQ = list(map(lambda x: int(math.pow(FMAX, x / FMAX)), range(FMIN, FMAX, FS))) + [FMAX]
     _FADE_IN_ANIM = list(zip(_FADE_IN_SEQ, _FADE_IN_SEQ))
 
-    _FADE_OUT_SEQ = list(map(lambda x: int(math.pow(FM, x/FM)), range(FM, 0, -FS))) + [0]
+    _FADE_OUT_SEQ = list(map(lambda x: int(math.pow(FMAX, x / FMAX)), range(FMAX, FMIN, -FS)))
 
     # fade out animation- fades both eyes out
     _FADE_OUT_ANIM = list(zip(_FADE_OUT_SEQ, _FADE_OUT_SEQ))
-    _EMPTY_SEQ = [0] * 5
-    _FULL_SEQ = [FM] * 5
+    _EMPTY_SEQ = [FMIN] * 2
+    _FULL_SEQ = [FMAX] * 2
 
     _LEFT_TO_RIGHT_ANIM = list(zip(
-        _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ + _EMPTY_SEQ,
-        _EMPTY_SEQ + _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ
-    )) + [(0, 0)]
+        [FMID, FMIN, FMIN, FMIN, FMIN, FMIN, FMIN, FMID, FMAX],
+        [FMID, FMIN, FMID, FMAX, FMAX, FMAX, FMAX, FMAX, FMAX],
+    ))
     _RIGHT_TO_LEFT_ANIM = list(zip(
-        _EMPTY_SEQ + _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ,
-        _FADE_IN_SEQ + _FULL_SEQ + _FADE_OUT_SEQ + _EMPTY_SEQ,
-        )) + [(0, 0)]
+        [FMID, FMIN, FMID, FMAX, FMAX, FMAX, FMAX, FMAX, FMAX],
+        [FMID, FMIN, FMIN, FMIN, FMIN, FMIN, FMIN, FMID, FMAX],
+    ))
 
     _ANIM_MAP = {
         FADE_IN: _FADE_IN_ANIM,
         FADE_OUT: _FADE_OUT_ANIM,
         LEFT_TO_RIGHT: _LEFT_TO_RIGHT_ANIM,
-        RIGHT_TO_LEFT: _RIGHT_TO_LEFT_ANIM
+        RIGHT_TO_LEFT: _RIGHT_TO_LEFT_ANIM,
+        BLINK: list(zip([FMAX, FMIN, FMAX], [FMAX, FMIN, FMAX]))
     }
 
     def __init__(self, l, r, anim):
