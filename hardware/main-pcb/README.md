@@ -1,6 +1,6 @@
-# GAISA SARGS V02
+# GAISA SARGS R03
 
-Version 3 hardware, designed in Kicad
+Version 3 hardware, designed in Kicad 5
 by 
 SKRUBIS & ZAHARS ZE
 
