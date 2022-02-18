@@ -194,7 +194,7 @@ class SargsUI:
     heart_next_ticks_ms = 0
     h_range = list(reversed(list(range(1, 5))))
     main_selected_subscreen = 0
-    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen"]
+    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen", "draw_credits_screen"]
 
     async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
@@ -402,5 +402,34 @@ class SargsUI:
         temp_x = 58
         self.screen.drawText(temp_x, 0, temp_text, 0xFFFFFF, temp_font, 1, 1)
         self.screen.drawCircle(temp_x + temp_text_w + 2 , 1, 1, 0, 360, False, 0xFFFFFF)
+
+    credits_frame = 0
+    credits_frame_range = list(range(0, 25))
+    credits_y_pos = 0
+    credits_next_ticks_ms = 0
+    async def draw_credits_screen(self):
+        fn_templ = "/assets/credits/credits%d.png"
+        fn = fn_templ % self.credits_frame_range[self.credits_frame]
+        self.screen.drawPng(0, self.credits_y_pos, fn)
+        if self.credits_frame != len(self.credits_frame_range) - 1 and self.credits_y_pos != 0:
+            # also draw the next sprite
+            fn = fn_templ % self.credits_frame_range[self.credits_frame + 1]
+            self.screen.drawPng(0, self.credits_y_pos + 64, fn)
+
+        if self.credits_next_ticks_ms != 0 and ticks_ms() > self.credits_next_ticks_ms:
+            # scroll by credits
+            self.credits_y_pos -= 3
+            if self.credits_y_pos < -64:
+                self.credits_frame += 1
+                self.credits_y_pos = 0
+                if self.credits_frame == len(self.credits_frame_range):
+                    # end of credits, switch back to main screen
+                    self.credits_next_ticks_ms = 0
+                    self.credits_frame = 0
+                    self.main_selected_subscreen = 0
+
+        self.credits_next_ticks_ms = ticks_ms() + 5
+
+
 
 
