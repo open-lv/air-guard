@@ -22,5 +22,13 @@
     "authmode": "wpa2-psk",
     "rssi": -90,
     "hidden": false
+  },
+  {
+    "ssid": "ssid5",
+    "bssid": "00:00:00:00:00:05",
+    "channel": 3,
+    "authmode": "unknown",
+    "rssi": -12,
+    "hidden": false
   }
 ]

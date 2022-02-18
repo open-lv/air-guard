@@ -17,11 +17,17 @@ const app = new Vue({
   router,
   template: `
     <div class="container" id="app">
-      <ul>
-        <li v-if="$route.path !== '/'">
-          <router-link to="/">Galvenā</router-link>
-        </li>
-      </ul>
+      <div class="navbar navbar-light bg-light navbar-expand-sm px-3">
+        <img class="navbar-brand" src="airguard.svg" />
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item" v-bind:class="{ active: $route.path === '/' }">
+            <router-link to="/" class="nav-link">Galvenā</router-link>
+          </li>
+          <li class="nav-item" v-bind:class="{ active: $route.path === '/wifi-settings' }">
+            <router-link to="/wifi-settings" class="nav-link">WiFi iestatījumi</router-link>
+          </li>
+        </ul>
+      </div>
       <router-view class="view"></router-view>
     </div>
   `,

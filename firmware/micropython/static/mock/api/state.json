@@ -5,6 +5,7 @@
   },
   "wifi": {
     "connected": false,
-    "internet": false
+    "internet": false,
+    "ssid": null
   }
 }
