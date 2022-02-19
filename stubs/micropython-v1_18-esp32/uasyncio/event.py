@@ -1,41 +1,61 @@
-"""
-Module: 'uasyncio.event' on micropython-v1.18-esp32
-"""
-# MCU: {'ver': 'v1.18', 'port': 'esp32', 'arch': 'xtensawin', 'sysname': 'esp32', 'release': '1.18.0', 'name': 'micropython', 'mpy': 10757, 'version': '1.18.0', 'machine': 'ESP32 module (spiram) with ESP32', 'build': '', 'nodename': 'esp32', 'platform': 'esp32', 'family': 'micropython'}
-# Stubber: 1.5.4
-from typing import Any
+# MicroPython uasyncio module
+# MIT license; Copyright (c) 2019-2020 Damien P. George
 
+from . import core
 
+# Event class for primitive events that can be waited on, set, and cleared
 class Event:
-    """"""
+    def __init__(self):
+        self.state = False  # False=unset; True=set
+        self.waiting = core.TaskQueue()  # Queue of Tasks waiting on completion of this event
 
-    def __init__(self, *argv, **kwargs) -> None:
-        """"""
-        ...
+    def is_set(self):
+        return self.state
 
-    def clear(self, *args, **kwargs) -> Any:
-        ...
+    def set(self):
+        # Event becomes set, schedule any tasks waiting on it
+        # Note: This must not be called from anything except the thread running
+        # the asyncio loop (i.e. neither hard or soft IRQ, or a different thread).
+        while self.waiting.peek():
+            core._task_queue.push_head(self.waiting.pop_head())
+        self.state = True
 
-    def set(self, *args, **kwargs) -> Any:
-        ...
+    def clear(self):
+        self.state = False
 
-    def is_set(self, *args, **kwargs) -> Any:
-        ...
+    async def wait(self):
+        if not self.state:
+            # Event not set, put the calling task on the event's waiting queue
+            self.waiting.push_head(core.cur_task)
+            # Set calling task's data to the event's queue so it can be removed if needed
+            core.cur_task.data = self.waiting
+            yield
+        return True
 
-    wait: Any  ## <class 'generator'> = <generator>
 
+# MicroPython-extension: This can be set from outside the asyncio event loop,
+# such as other threads, IRQs or scheduler context. Implementation is a stream
+# that asyncio will poll until a flag is set.
+# Note: Unlike Event, this is self-clearing.
+try:
+    import uio
 
-class ThreadSafeFlag:
-    """"""
+    class ThreadSafeFlag(uio.IOBase):
+        def __init__(self):
+            self._flag = 0
 
-    def __init__(self, *argv, **kwargs) -> None:
-        """"""
-        ...
+        def ioctl(self, req, flags):
+            if req == 3:  # MP_STREAM_POLL
+                return self._flag * flags
+            return None
 
-    def set(self, *args, **kwargs) -> Any:
-        ...
+        def set(self):
+            self._flag = 1
 
-    def ioctl(self, *args, **kwargs) -> Any:
-        ...
+        async def wait(self):
+            if not self._flag:
+                yield core._io_queue.queue_read(self)
+            self._flag = 0
 
-    wait: Any  ## <class 'generator'> = <generator>
+except ImportError:
+    pass
