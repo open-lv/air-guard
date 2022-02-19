@@ -20,18 +20,61 @@ def decode_station_authmode(authmode):
         return "wpa/wpa2-psk"
     return "unknown"
 
+
 def can_access_internet():
     return False
+
+
+class CaptiveWebserver(tinyweb.webserver):
+    def __init__(self, ip_addr, request_timeout=3, max_concurrency=3, backlog=16, debug=False):
+        super().__init__(request_timeout, max_concurrency, backlog, debug)
+        self.redirect_url = 'http://{}/'.format(ip_addr)
+        self.ip_addr = ip_addr.encode()
+
+    async def _redirect_handler(req, resp: tinyweb.response, redirect_uri):
+        await resp.redirect(redirect_uri)
+
+    async def _handle_request(self, req, resp):
+        await req.read_request_line()
+        # Find URL handler
+        req.handler, req.params = self._find_url_handler(req)
+        if not req.handler:
+            req.params = {'methods': [b'GET'],
+                          'save_headers': [b'Host'],
+                          'max_body_size': 1024,
+                          'allowed_access_control_headers': '*',
+                          'allowed_access_control_origins': '*',
+                          }
+
+            # No URL handler found - read response and issue HTTP 404
+            await req.read_headers(req.params['save_headers'])
+
+            if b'Host' not in req.headers or req.headers[b'Host'] != self.ip_addr:
+                req._param = self.redirect_url
+                req.handler = CaptiveWebserver._redirect_handler
+                return
+
+            raise tinyweb.HTTPException(404)
+
+        req.params['save_headers'].append(b'Host')
+        resp.params = req.params
+        # Read / parse headers
+        await req.read_headers(req.params['save_headers'])
+
+        if b'Host' not in req.headers or req.headers[b'Host'] != self.ip_addr:
+            req._param = self.redirect_url
+            req.handler = CaptiveWebserver._redirect_handler
 
 
 class Portal:
     # Create web server application
     is_running = False
-    server = tinyweb.webserver()
+    server = CaptiveWebserver('192.168.4.1')
 
     @server.route('/')
     async def index(request, response):
-        await response.send_file('static/index.html.gz', content_type="text/html; charset=UTF-8", content_encoding="gzip")
+        await response.send_file('static/index.html.gz', content_type="text/html; charset=UTF-8",
+                                 content_encoding="gzip")
 
     @server.resource('/api/state')
     def sargsState(self):
