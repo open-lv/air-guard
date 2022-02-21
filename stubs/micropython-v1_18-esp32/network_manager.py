@@ -34,8 +34,12 @@ class NetworkManager:
         wifi_password = self.wifi_password
         captive_portal_enabled = self._captive_portal_enabled
 
+        if not wifi_ssid and captive_portal_enabled:
+            self._log("WIFI configuration not found. Enabling AP")
+            self._enable_ap()
+            return
+
         connected_once = False
-        self._is_wifi_connected = False
 
         while True:
             try:
@@ -45,7 +49,6 @@ class NetworkManager:
                     continue
 
                 self._log.info("WIFI disconnected")
-                self._is_wifi_connected = False
                 if connected_once and self._on_disconnected:
                     self._on_disconnected()
 
@@ -62,7 +65,6 @@ class NetworkManager:
 
                 self._log.info("WiFi connected, ifconfig: %s" % str(self._sta_if.ifconfig()))
 
-                self._is_wifi_connected = True
                 if self._on_connected:
                     self._on_connected()
                 connected_once = True
