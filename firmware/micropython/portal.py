@@ -5,6 +5,7 @@ import os
 import binascii
 
 from sargs import sargs
+import sargsui
 
 
 def decode_station_authmode(authmode):
@@ -21,10 +22,6 @@ def decode_station_authmode(authmode):
     return "unknown"
 
 
-def can_access_internet():
-    return False
-
-
 class CaptiveWebserver(tinyweb.webserver):
     def __init__(self, ip_addr, request_timeout=3, max_concurrency=3, backlog=16, debug=False):
         super().__init__(request_timeout, max_concurrency, backlog, debug)
@@ -35,6 +32,10 @@ class CaptiveWebserver(tinyweb.webserver):
         await resp.redirect(redirect_uri)
 
     async def _handle_request(self, req, resp):
+        if sargs.ui.wifi_state != sargsui.WiFiState.ACCESS_POINT:
+            await super()._handle_request(req, resp)
+            return
+
         await req.read_request_line()
         # Find URL handler
         req.handler, req.params = self._find_url_handler(req)
@@ -78,8 +79,9 @@ class Portal:
 
     @server.resource('/api/state')
     def sargsState(self):
-        is_connected = sargs.sta_if.isconnected()
-        is_internet = can_access_internet() if is_connected else False
+        is_connected = sargs.ui.wifi_state == sargsui.WiFiState.CONNECTED
+        is_internet = sargs.ui.internet_state == sargsui.InternetState.CONNECTED
+        connected_ssid = sargs.get_connected_ssid()
 
         return {
             "co2": {
@@ -89,17 +91,17 @@ class Portal:
             "wifi": {
                 "connected": is_connected,
                 "internet": is_internet,
-                "ssid": sargs.wifi_ssid,
+                "ssid": connected_ssid,
             }
         }
 
     @server.resource('/api/stations')
     async def stations(self):
-        stations = sargs.sta_if.scan()
+        access_points = sargs.get_wifi_ap_list()
 
         yield "["
-        last_station = stations[-1]
-        for station in stations:
+        last_station = access_points[-1]
+        for station in access_points:
             yield json.dumps({
                 "ssid": station[0],
                 "bssid": binascii.hexlify(station[1], b':'),

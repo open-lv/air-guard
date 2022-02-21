@@ -12,6 +12,12 @@ class WiFiState:
     UNCONFIGURED = 1
     CONNECTING = 2
     CONNECTED = 3
+    DISCONNECTED = 4
+    ACCESS_POINT = 5
+
+class InternetState:
+    DISCONNECTED = 1
+    CONNECTED = 2
 
 
 class CO2Level:
@@ -41,12 +47,15 @@ class SargsUI:
     temperature_measurement = None
     co2_level = CO2Level.UNKNOWN
     wifi_state = WiFiState.UNCONFIGURED
+    internet_state = InternetState.DISCONNECTED
     current_screen = ScreenState.INIT_SCREEN
     calibration_requested = False
     WIFI_STATE_DESC = {
         WiFiState.UNCONFIGURED: "nav konf.",
+        WiFiState.ACCESS_POINT: "piekļ. p.",
+        WiFiState.DISCONNECTED: "atvienots",
         WiFiState.CONNECTING: "savienojas",
-        WiFiState.CONNECTED: "savienots"
+        WiFiState.CONNECTED: "savienots",
     }
     CO2_LEVEL_DESC = {
         CO2Level.LOW: "LABS GAISS!",
@@ -102,6 +111,9 @@ class SargsUI:
 
     def set_wifi_state(self, s):
         self.wifi_state = s
+
+    def set_internet_state(self, s):
+        self.internet_state = s
 
     def set_co2_level(self, l):
         self.co2_level = l

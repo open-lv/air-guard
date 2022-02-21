@@ -7,9 +7,12 @@ import sys
 import time
 import uasyncio
 from machine import Pin, I2C, UART, ADC
+from uasyncio import CancelledError
+from uasyncio import Task
 from umqtt.simple import MQTTException
 from utils import *
 from utime import ticks_ms
+import network_manager
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +30,8 @@ EYE_BRIGHTNESS = 128
 
 
 class Sargs:
+    INTERNET_CONNECTION_TIMEOUT = 10
+
     led_red = LEDPWMSignal(Pin(33, Pin.OUT), on_duty=HAND_BRIGHTNESS)
     led_yellow = LEDPWMSignal(Pin(25, Pin.OUT), on_duty=HAND_BRIGHTNESS)
     led_green = LEDPWMSignal(Pin(26, Pin.OUT), on_duty=HAND_BRIGHTNESS)
@@ -48,14 +53,13 @@ class Sargs:
     co2_measurement = None
     user_main_loop_started = False
 
-    wifi_ssid = None
-    wifi_password = None
+    _wifi_ssid = None
+    _wifi_password = None
 
-    # wifi housekeeping variables
-    wifi_connection_time = None
-    wifi_post_connection_tasks_run = False
-    sta_if = network.WLAN(network.STA_IF)
-    ap_if = network.WLAN(network.AP_IF)
+    network_manager = None
+    _internet_checker_task: uasyncio.Task = None
+    _sta_if = network.WLAN(network.STA_IF)
+    _ap_if = network.WLAN(network.AP_IF)
 
     mqtt_client = None
 
@@ -75,12 +79,6 @@ class Sargs:
 
     async def setup(self):
         self.ldr_adc.atten(ADC.ATTN_11DB)  # for some reason, specifying atten while creating ADC doesn't work
-
-        self.log.info("Disabling WiFi interfaces")
-        # disable WiFi interfaces
-        self.ap_if.active(False)
-        # disabling interface on startup helps with OSError Internal WiFi error when reconnecting
-        self.sta_if.active(False)
 
         # initialize hardware
         self.log.info("Initializing hardware")
@@ -154,15 +152,17 @@ class Sargs:
         # config file can be non-existant
         try:
             import config
-            self.wifi_ssid = config.WIFI_SSID
-            self.wifi_password = config.WIFI_PASSWORD
+            self._wifi_enabled = config.WIFI_ENABLED
+            self._captive_portal_enabled = config.CAPTIVE_PORTAL_ENABLED
+            self._wifi_ssid = config.WIFI_SSID
+            self._wifi_password = config.WIFI_PASSWORD
             self.log.info("config imported")
         except ImportError:
             self.log.info("config does not exist, skipping")
 
     def handle_co2_measurement(self, m):
         self.co2_measurement = m
-        if self.sta_if.isconnected() and self.mqtt_client:
+        if self.mqtt_client:
             try:
                 self.mqtt_client.handle_co2_measurement(m, self.co2_sensor.get_cached_temperature_reading())
             except (MQTTException, OSError) as e:
@@ -170,30 +170,16 @@ class Sargs:
                 self.log.info("re-connecting to mqtt")
                 self.connect_mqtt()
 
-    def run_wifi(self):
-        try:
-            if self.wifi_ssid and not self.sta_if.active():
-                self.log.info("enabling WiFi")
-                self.sta_if.active(True)
+    def set_wifi_settings(self, wifi_ssid, wifi_password):
+        if not self.network_manager:
+            self.log.error("Trying to set WIFI settings without network manager")
+            return
 
-            if self.wifi_ssid and not self.sta_if.isconnected() and (
-                    self.wifi_connection_time is None
-                    or (ticks_ms() - self.wifi_connection_time) > 5000
-            ):
-                self.wifi_connection_time = ticks_ms()
-                self.wifi_post_connection_tasks_run = False
-                self.log.info("connecting to WiFi AP: %s" % self.wifi_ssid)
-                self.sta_if.connect(self.wifi_ssid, self.wifi_password)
-
-            if self.sta_if.isconnected() and not self.wifi_post_connection_tasks_run:
-                self.log.info("WiFi connected, ifconfig: %s" % str(self.sta_if.ifconfig()))
-                self.connect_mqtt()
-                self.wifi_post_connection_tasks_run = True
-
-        except OSError as e:
-            self.log.warning("OSError during wifi connection: %s" % e)
-            self.sta_if.active(False)
-            self.mqtt_client = None
+        self._wifi_ssid = wifi_ssid
+        self._wifi_password = wifi_password
+        self.network_manager.wifi_ssid = wifi_ssid
+        self.network_manager.wifi_password = wifi_password
+        self.network_manager.restart()
 
     def connect_mqtt(self):
         """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
@@ -226,14 +212,6 @@ class Sargs:
                 level = sargsui.CO2Level.LOW
             self.ui.set_co2_level(level)
 
-        if self.sta_if.isconnected():
-            wifi_state = sargsui.WiFiState.CONNECTED
-        elif self.sta_if.active():
-            wifi_state = sargsui.WiFiState.CONNECTING
-        else:
-            wifi_state = sargsui.WiFiState.UNCONFIGURED
-        self.ui.set_wifi_state(wifi_state)
-
         await self.ui.update()
 
         if self.ui.calibration_requested:
@@ -248,12 +226,76 @@ class Sargs:
         x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
         self.screen.drawText(x, y, text)
 
+    def get_connected_ssid(self):
+        return self._sta_if.config('essid')
+
+    def get_wifi_ap_list(self):
+        interface_state = self._sta_if.active()
+        self._sta_if.active(True)
+        stations = self._sta_if.scan()
+        if not interface_state:
+            self._sta_if.active(False)
+
+        return stations
+
+    async def _check_internet(self):
+        self.log.info("Internet connectivity checker started")
+
+        while True:
+            try:
+                reader, writer = await uasyncio.wait_for(uasyncio.open_connection('1.1.1.1', 53),
+                                                         self.INTERNET_CONNECTION_TIMEOUT)
+                await writer.aclose()
+                self.ui.internet_state = sargsui.InternetState.CONNECTED
+                await uasyncio.sleep(30)
+            except CancelledError:
+                self.log.info("Internet connectivity checker cancelled")
+                self.ui.internet_state = sargsui.InternetState.DISCONNECTED
+                raise
+            except Exception as e:
+                self.log.info("error during internet connectivity check: %s. Retrying in 30 seconds" % repr(e))
+                self.ui.internet_state = sargsui.InternetState.DISCONNECTED
+                await uasyncio.sleep(30)
+
+    def _on_network_manager_connected(self):
+        self.ui.set_wifi_state(sargsui.WiFiState.CONNECTED)
+        self.connect_mqtt()
+        self._internet_checker_task = uasyncio.create_task(self._check_internet())
+
+    def _on_network_manager_disconnected(self):
+        self.ui.set_wifi_state(sargsui.WiFiState.DISCONNECTED)
+        if self.mqtt_client:
+            self.mqtt_client = None
+        self._internet_checker_task.cancel()
+
+    def _on_network_manager_connecting(self):
+        self.ui.set_wifi_state(sargsui.WiFiState.CONNECTING)
+
+    def _on_network_manager_ap_enabled(self):
+        self.ui.set_wifi_state(sargsui.WiFiState.ACCESS_POINT)
+
     async def run(self):
         """
         This task is executed in the context of a thread that's separate from main.py.
         It should handle re-drawing screen, handling WiFi status polling, 
         calibration statemachine (and probably something else I haven't thought about yet)
         """
+        if self._wifi_enabled:
+            if not self._wifi_ssid and not self._captive_portal_enabled:
+                self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
+            else:
+                self.network_manager = network_manager.NetworkManager(self._wifi_ssid, self._wifi_password,
+                                                                      captive_portal_enabled=self._captive_portal_enabled,
+                                                                      captive_portal_ssid="GaisaSargs",
+                                                                      on_connected=self._on_network_manager_connected,
+                                                                      on_disconnected=self._on_network_manager_disconnected,
+                                                                      on_ap_enabled=self._on_network_manager_ap_enabled,
+                                                                      on_connecting=self._on_network_manager_connecting,
+                                                                      )
+                self.network_manager.start()
+        else:
+            self.log.warning("WIFI not enabled")
+
         self.log.info("starting background thread, waiting for user main thread to start")
         self.buzzer.duty(0)
         while not self.user_main_loop_started and not self.exit_requested:
@@ -264,7 +306,6 @@ class Sargs:
             try:
                 while not self.exit_requested:
                     await self.run_screen()
-                    self.run_wifi()
                     await uasyncio.sleep(0.01)
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
