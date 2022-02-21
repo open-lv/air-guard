@@ -35,7 +35,7 @@ class NetworkManager:
         captive_portal_enabled = self._captive_portal_enabled
 
         if not wifi_ssid and captive_portal_enabled:
-            self._log("WIFI configuration not found. Enabling AP")
+            self._log.info("WIFI configuration not found. Enabling AP")
             self._enable_ap()
             return
 
@@ -48,11 +48,11 @@ class NetworkManager:
                     await uasyncio.sleep(30)
                     continue
 
-                self._log.info("WIFI disconnected")
-                if connected_once and self._on_disconnected:
-                    self._on_disconnected()
-
-                self._reset_network_services()
+                if connected_once:
+                    self._log.info("WIFI disconnected")
+                    self._reset_network_services()
+                    if self._on_disconnected:
+                        self._on_disconnected()
 
                 if not await self._connect_to_wifi(wifi_ssid, wifi_password):
                     if not connected_once and captive_portal_enabled:
