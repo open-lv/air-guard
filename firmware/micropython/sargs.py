@@ -53,6 +53,8 @@ class Sargs:
     co2_measurement = None
     user_main_loop_started = False
 
+    _wifi_enabled = True
+    _captive_portal_enabled = True
     _wifi_ssid = None
     _wifi_password = None
 
