@@ -23,8 +23,8 @@ def decode_station_authmode(authmode):
 
 
 class CaptiveWebserver(tinyweb.webserver):
-    def __init__(self, ip_addr, request_timeout=3, max_concurrency=3, backlog=16, debug=False):
-        super().__init__(request_timeout, max_concurrency, backlog, debug)
+    def __init__(self, ip_addr, request_timeout=3, max_concurrency=3, backlog=16, buffer_size=512, debug=False):
+        super().__init__(request_timeout, max_concurrency, backlog, buffer_size, debug)
         self.redirect_url = 'http://{}/'.format(ip_addr)
         self.ip_addr = ip_addr.encode()
 
