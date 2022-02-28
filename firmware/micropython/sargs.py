@@ -139,8 +139,8 @@ class Sargs:
         self.exit_requested = True
         self.log.error("CO2 sensor not responding")
         self.screen.drawFill(0)
-        self.screen.drawText(0, 20, "  CO2 sensors")
-        self.screen.drawText(0, 30, "    neatbild!")
+        await self.draw_centered_text(20, "CO2 sensors")
+        await self.draw_centered_text(32, "neatbild!")
         self.screen.flush()
         for _ in range(30):
             self.led_yellow.on()
