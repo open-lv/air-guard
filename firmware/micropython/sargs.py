@@ -323,7 +323,7 @@ class Sargs:
             try:
                 while not self.exit_requested:
                     await self.run_screen()
-                    await uasyncio.sleep(0.01)
+                    await uasyncio.sleep_ms(30) # not more than 60FPS
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
                 self.exit_requested = True
