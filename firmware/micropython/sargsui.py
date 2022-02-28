@@ -1,5 +1,6 @@
 import logging
 import random
+import time
 
 import uasyncio
 from utime import ticks_ms
@@ -173,8 +174,8 @@ class SargsUI:
         else:
             # reset the next blink time while animation is in progress
             self.eye_next_blink_ticks_ms = ticks_ms() + 5000
-
         self.screen.drawFill(0)
+        await uasyncio.sleep_ms(1)
         screen_fn_map = {
             ScreenState.INIT_SCREEN: self.draw_init_screen,
             ScreenState.MAIN_SCREEN: self.draw_main_screen,
@@ -187,6 +188,7 @@ class SargsUI:
         if self.current_screen in screen_fn_map.keys():
             await screen_fn_map[self.current_screen]()
         self.screen.flush()
+        await uasyncio.sleep_ms(1)
 
         # if CO2 level has just become high
         if self.co2_level == CO2Level.HIGH and self.prev_co2_level != self.co2_level:
@@ -205,7 +207,7 @@ class SargsUI:
     async def draw_init_screen(self):
         explosion_range = list(range(0, 11))
         fn = "/assets/splash/intro%d.png" % explosion_range[self.init_screen_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
         self.init_screen_frame += 1
         if self.init_screen_frame == len(explosion_range):
             self.screen.flush()
@@ -222,7 +224,7 @@ class SargsUI:
             return
         intro_range = list(range(11, 34)) + [0]
         fn = "/assets/splash/intro%d.png" % intro_range[self.intro_screen_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
         self.intro_screen_frame += 1
         if self.intro_screen_frame == len(intro_range):
             self.intro_screen_frame = 0
@@ -270,19 +272,23 @@ class SargsUI:
         temp_font = "graphik_bold16"
         temp_x = 58
         self.screen.drawText(temp_x, -11, temp_text, 0xffffff, temp_font, 1, 1)
+        await uasyncio.sleep_ms(1)
         # position of degree symbol based on displayed value
         deg_x = temp_x + self.screen.getTextWidth(temp_num, temp_font) + 3
+        await uasyncio.sleep_ms(1)
         self.screen.drawCircle(deg_x, 3, 3, 0, 360, False, 0xFFFFFF)
+        await uasyncio.sleep_ms(1)
 
         # CO2 sensor measurement
         ppm_t = str(self.co2_measurement)
         self.screen.drawText(48, 20, ppm_t, 0xffffff, "graphik_bold20", 1, 1)
+        await uasyncio.sleep_ms(1)
 
         # PPM text
-        self.screen.drawPng(0, 47, '/assets/ppm/ppm17.png')
+        await self.drawPng(0, 47, '/assets/ppm/ppm17.png')
 
         fn = "/assets/beating-heart/sirds%d.png" % self.h_range[self.heart_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
 
         if ticks_ms() > self.heart_next_ticks_ms:
             self.heart_frame += 1
@@ -297,7 +303,7 @@ class SargsUI:
     async def draw_warmup_screen(self):
         f_range = list(range(0, 9))
         fn = "/assets/beating-heart/ekg%d.png" % f_range[self.warmup_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
         self.warmup_frame += 1
         if self.warmup_frame == len(f_range):
             self.warmup_frame = 0
@@ -310,7 +316,7 @@ class SargsUI:
 
     async def draw_open_window_screen(self):
         fn = "/assets/open-window/open%d.png" % self.open_window_range[self.open_window_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
         self.open_window_frame += 1
 
         if self.open_window_frame == len(self.open_window_range):
@@ -330,9 +336,13 @@ class SargsUI:
 
         fonts = ["graphik_bold16", "graphik_bold20"]
         x = (self.screen.width() - self.screen.getTextWidth(ppm_t, fonts[idx])) // 2
+        await uasyncio.sleep_ms(1)
         y = (self.screen.height() - self.screen.getTextHeight(ppm_t, fonts[idx])) // 2 - 5
+        await uasyncio.sleep_ms(1)
+
 
         self.screen.drawText(x, y, ppm_t, 0xffffff, fonts[idx])
+        await uasyncio.sleep_ms(1)
 
         if self.co2_level == CO2Level.LOW:
             await self.buzzer.short_beep()
@@ -347,7 +357,9 @@ class SargsUI:
     async def draw_hcenter_text(self, y, text):
         """Draws a horizontally centered line of text at specified offset from top"""
         x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
+        await uasyncio.sleep_ms(1)
         self.screen.drawText(x, y, text)
+        await uasyncio.sleep_ms(1)
 
     async def draw_calibration_screen(self):
 
@@ -398,9 +410,11 @@ class SargsUI:
 
     async def draw_button(self, x, y, text, selected):
         self.screen.drawText(x + 3, y + 3, text)
+        await uasyncio.sleep_ms(1)
         if selected:
             self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,
                                  self.screen.getTextHeight(text) + 7, False, 0xffffff)
+            await uasyncio.sleep_ms(1)
 
 #     TODO - replace current main view with this, current main view as second / third smth view
 
@@ -413,7 +427,7 @@ class SargsUI:
         """
 
         fn = "/assets/beating-heart/liela-sirds%d.png" % self.large_heart_range[self.large_heart_frame]
-        self.screen.drawPng(0, 0, fn)
+        await self.drawPng(0, 0, fn)
 
         if ticks_ms() > self.large_heart_next_ticks_ms:
             self.large_heart_frame += 1
@@ -423,18 +437,23 @@ class SargsUI:
             else:
                 self.large_heart_next_ticks_ms = ticks_ms() + 50
 
-        self.screen.drawPng(49, 46, '/assets/ppm/ppmw10.png')
+        await self.drawPng(49, 46, '/assets/ppm/ppmw10.png')
         ppm_text = str(self.co2_measurement)
         ppm_font = "graphik_bold20"
         ppm_text_w = self.screen.getTextWidth(ppm_text, ppm_font)
+        await uasyncio.sleep_ms(1)
         self.screen.drawText((self.screen.width() - ppm_text_w) // 2, 2, ppm_text, 0x000000, ppm_font, 1, 1)
+        await uasyncio.sleep_ms(1)
 
         temp_text = str(self.temperature_measurement)
         temp_font = "7x5"
         temp_text_w = self.screen.getTextWidth(temp_text, temp_font)
+        await uasyncio.sleep_ms(1)
         temp_x = 58
         self.screen.drawText(temp_x, 0, temp_text, 0xFFFFFF, temp_font, 1, 1)
+        await uasyncio.sleep_ms(1)
         self.screen.drawCircle(temp_x + temp_text_w + 2 , 1, 1, 0, 360, False, 0xFFFFFF)
+        await uasyncio.sleep_ms(1)
 
     credits_frame = 0
     credits_frame_range = list(range(0, 25))
@@ -443,11 +462,11 @@ class SargsUI:
     async def draw_credits_screen(self):
         fn_templ = "/assets/credits/credits%d.png"
         fn = fn_templ % self.credits_frame_range[self.credits_frame]
-        self.screen.drawPng(0, self.credits_y_pos, fn)
+        await self.drawPng(0, self.credits_y_pos, fn)
         if self.credits_frame != len(self.credits_frame_range) - 1 and self.credits_y_pos != 0:
             # also draw the next sprite
             fn = fn_templ % self.credits_frame_range[self.credits_frame + 1]
-            self.screen.drawPng(0, self.credits_y_pos + 64, fn)
+            await self.drawPng(0, self.credits_y_pos + 64, fn)
 
         if self.credits_next_ticks_ms != 0 and ticks_ms() > self.credits_next_ticks_ms:
             # scroll by credits
@@ -462,6 +481,10 @@ class SargsUI:
                     self.main_selected_subscreen = 0
 
         self.credits_next_ticks_ms = ticks_ms() + 5
+
+    async def drawPng(self, x_pos, y_pos, fn):
+        self.screen.drawPng(x_pos, y_pos, fn)
+        await uasyncio.sleep_ms(1)
 
 
 
