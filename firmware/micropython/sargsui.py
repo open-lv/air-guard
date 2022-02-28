@@ -5,7 +5,7 @@ import time
 import uasyncio
 from utime import ticks_ms
 from utils import ButtonEventHandler, EyeAnimation, Buzzer
-
+import plot
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
 
@@ -36,7 +36,8 @@ class ScreenState:
     WARMUP_SCREEN = 4
     OPEN_WINDOW_SCREEN = 5
     LARGE_PPM_SCREEN = 6
-    SCREEN_END = 7
+    PLOT_SCREEN = 7
+    SCREEN_END = 8
 
 
 class SargsUIException(Exception):
@@ -89,6 +90,13 @@ class SargsUI:
         CO2Level.HIGH: 300,
     }
 
+    plots = [
+        ("15 min", plot.CO2Plotter(15, 128, 48)),
+        ("1 h", plot.CO2Plotter(60, 128, 48)),
+        ("12 h", plot.CO2Plotter(60*12, 128, 48)),
+        ("24 h", plot.CO2Plotter(60*24, 128, 48))
+    ]
+
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
         self.log = logging.getLogger("screen")
         self.buzzer: Buzzer = buzzer
@@ -106,6 +114,8 @@ class SargsUI:
 
     def set_co2_measurement(self, m):
         self.co2_measurement = m
+        for p in self.plots:
+            p[1].add_measurement(m)
 
     def set_temperature_measurement(self, m):
         self.temperature_measurement = m
@@ -123,6 +133,9 @@ class SargsUI:
         self.current_screen = ScreenState.MAIN_SCREEN
         self.calibration_requested = False
         self.frame_display_ms = 0
+
+    def select_last_main_subscreen(self):
+        self.main_selected_subscreen = len(self.main_subscreens) - 1
 
     def select_cal_screen(self):
         self.cal_screen_negedge_count = 0
@@ -183,7 +196,8 @@ class SargsUI:
             ScreenState.INTRO_SCREEN: self.draw_intro_screen,
             ScreenState.WARMUP_SCREEN: self.draw_warmup_screen,
             ScreenState.OPEN_WINDOW_SCREEN: self.draw_open_window_screen,
-            ScreenState.LARGE_PPM_SCREEN: self.draw_large_ppm_screen
+            ScreenState.LARGE_PPM_SCREEN: self.draw_large_ppm_screen,
+            ScreenState.PLOT_SCREEN: self.draw_plot_screen,
         }
         if self.current_screen in screen_fn_map.keys():
             await screen_fn_map[self.current_screen]()
@@ -231,7 +245,10 @@ class SargsUI:
             self.current_screen = ScreenState.WARMUP_SCREEN
 
     main_selected_subscreen = 0
-    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen", "draw_credits_screen"]
+    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen",
+                       "draw_15min_plot_screen", "draw_1h_plot_screen", "draw_12h_plot_screen", "draw_24h_plot_screen",
+                       "draw_credits_screen",
+                       ]
 
     async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
@@ -486,6 +503,34 @@ class SargsUI:
         self.screen.drawPng(x_pos, y_pos, fn)
         await uasyncio.sleep_ms(1)
 
+    async def draw_15min_plot_screen(self):
+        await self.draw_plot_screen(0)
 
+    async def draw_1h_plot_screen(self):
+        if not self.plots[1][1].have_enough_data():
+            self.select_last_main_subscreen()
+        else:
+            await self.draw_plot_screen(1)
 
+    async def draw_12h_plot_screen(self):
+        if not self.plots[2][1].have_enough_data():
+            self.select_last_main_subscreen()
+        else:
+            await self.draw_plot_screen(2)
 
+    async def draw_24h_plot_screen(self):
+        if not self.plots[3][1].have_enough_data():
+            self.select_last_main_subscreen()
+        else:
+            await self.draw_plot_screen(3)
+
+    async def draw_plot_screen(self, selected_plot):
+        sp = self.plots[selected_plot]
+        text = "%s " % sp[0]
+        self.screen.drawText(self.screen.width() - self.screen.getTextWidth(text),
+                             self.screen.height() - self.screen.getTextHeight(text) - 2,
+                             text)
+        if sp[1].have_enough_data():
+            sp[1].plot_data(self.screen, 0)
+        else:
+            await self.draw_hcenter_text(24, "Nepietiek datu!")
