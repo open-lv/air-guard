@@ -121,7 +121,7 @@ esptool.py --chip esp32 --baud 460800 write_flash -z 0x1000 "$FIRMWARE_FILE_NAME
 cyan_underlined "Waiting for device to boot (3/5)"
 RETRIES=0
 while true; do
-  mpremote exec "print('Device ready')" &>/dev/null && break
+  mpremote connect "port:$ESPTOOL_PORT" exec "print('Device ready')" &>/dev/null && break
   RETRIES=$((+1))
   if [ "$RETRIES" -ge 5 ]; then
     red "Failed to boot device - disconnect and try again."
@@ -132,13 +132,13 @@ done
 
 cyan_underlined "Copying scripts to device (4/5)"
 pushd build
-mpremote cp -r . :
+mpremote connect "port:$ESPTOOL_PORT" cp -r . :
 popd
 
 # Keep the meta of all devices flashed
 cyan_underlined "Registering device information (5/5)"
 # carriage return needs to be trimmed
-DEVINFO=`mpremote run ./register-device.py | sed "s/\r$//"`
+DEVINFO=`mpremote connect "port:$ESPTOOL_PORT" run ./register-device.py | sed "s/\r$//"`
 echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.txt
 
 esptool.py run
