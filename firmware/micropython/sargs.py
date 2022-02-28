@@ -1,4 +1,6 @@
+import binascii
 import logging
+import machine
 import mhz19
 import mqtt
 import network
@@ -68,6 +70,9 @@ class Sargs:
     exit_requested = False
 
     version = "XXX"
+
+    machine_id = binascii.hexlify(machine.unique_id()).decode("ascii")
+    machine_id_short = machine_id[:6]
 
     def __init__(self):
         self.log = logging.getLogger("sargs")
@@ -295,9 +300,10 @@ class Sargs:
             if not self._wifi_ssid and not self._captive_portal_enabled:
                 self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
             else:
+
                 self.network_manager = network_manager.NetworkManager(self._wifi_ssid, self._wifi_password,
                                                                       captive_portal_enabled=self._captive_portal_enabled,
-                                                                      captive_portal_ssid="GaisaSargs",
+                                                                      captive_portal_ssid="GaisaSargs-%s" % self.machine_id_short,
                                                                       on_connected=self._on_network_manager_connected,
                                                                       on_disconnected=self._on_network_manager_disconnected,
                                                                       on_ap_enabled=self._on_network_manager_ap_enabled,
