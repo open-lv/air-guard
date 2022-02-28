@@ -157,8 +157,9 @@ class request:
 class response:
     """HTTP Response class"""
 
-    def __init__(self, _writer):
+    def __init__(self, _writer, buffer_size=128):
         self.writer = _writer
+        self.buffer_size = buffer_size
         self.send = _writer.awrite
         self.code = 200
         self.version = '1.0'
@@ -292,7 +293,7 @@ class response:
             with open(filename) as f:
                 await self._send_headers()
                 gc.collect()
-                buf = bytearray(128)
+                buf = bytearray(self.buffer_size)
                 while True:
                     size = f.readinto(buf)
                     if size == 0:
@@ -368,7 +369,7 @@ async def restful_resource_handler(req, resp, param=None):
 
 class webserver:
 
-    def __init__(self, request_timeout=3, max_concurrency=3, backlog=16, debug=False):
+    def __init__(self, request_timeout=3, max_concurrency=3, backlog=16, buffer_size=128, debug=False):
         """Tiny Web Server class.
         Keyword arguments:
             request_timeout - Time for client to send complete request
@@ -387,6 +388,7 @@ class webserver:
         self.request_timeout = request_timeout
         self.max_concurrency = max_concurrency
         self.backlog = backlog
+        self.buffer_size = buffer_size
         self.debug = debug
         self.explicit_url_map = {}
         self.catch_all_handler = None
@@ -439,7 +441,7 @@ class webserver:
 
         try:
             req = request(reader)
-            resp = response(writer)
+            resp = response(writer, buffer_size=self.buffer_size)
             # Read HTTP Request with timeout
             await asyncio.wait_for(self._handle_request(req, resp),
                                    self.request_timeout)
