@@ -6,7 +6,7 @@ import sargsui
 import sys
 import time
 import uasyncio
-from machine import Pin, I2C, UART, ADC
+from machine import Pin, I2C, UART, ADC, reset
 from uasyncio import CancelledError
 from uasyncio import Task
 from umqtt.simple import MQTTException
@@ -94,6 +94,13 @@ class Sargs:
     async def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
         try:
+            # since the migration to advanced framebuffer, the drawing functions fail silently if screen does not
+            # respond to I2C commands
+            # trying to read one byte from the LCD on startup does the trick
+            bus = I2C(0, scl=self.pin_lcd_clock, sda=self.pin_lcd_data)
+            bus.readfrom(0x3c, 1)
+            del bus
+
             self.screen = display
             self.screen.drawFill(0)
             self.screen.flush()
@@ -112,7 +119,7 @@ class Sargs:
             await uasyncio.sleep(0.5)
             self.led_red.off()
             await uasyncio.sleep(0.5)
-        sys.exit()
+        reset()
 
     async def _init_co2_sensor(self):
         # initializing sensor can also fail (not present, damaged)- try to verify and blink yellow led if failed
@@ -142,12 +149,14 @@ class Sargs:
         await self.draw_centered_text(20, "CO2 sensors")
         await self.draw_centered_text(32, "neatbild!")
         self.screen.flush()
+        self.led_red.off()
+        self.led_green.off()
         for _ in range(30):
             self.led_yellow.on()
             await uasyncio.sleep(0.5)
             self.led_yellow.off()
             await uasyncio.sleep(0.5)
-        sys.exit()
+        reset()
 
     def _init_config(self):
 
@@ -326,14 +335,23 @@ sargs = Sargs()
 
 async def perform_co2_measurement():
     # @TODO: Handle repeated hecksum errors here
-    sargs.user_main_loop_started = True
-    heating_start_time = time.ticks_ms()
+    if not sargs.user_main_loop_started:
+        # on startup, wait for up to 120s for a valid reading
+        sargs.user_main_loop_started = True
+        heating_start_time = time.ticks_ms()
+        while (time.ticks_ms() - heating_start_time) < 120 * 1000:
+            if sargs.co2_sensor.get_co2_reading() is not None:
+                break
+            await uasyncio.sleep(1)
+
+    # retry measurement up to three times, then give up and trigger error
     measurement = None
-    while (time.ticks_ms() - heating_start_time) < 120 * 1000:
+    for _ in range(3):
         measurement = sargs.co2_sensor.get_co2_reading()
         if measurement is not None:
-            return measurement
+            break
         await uasyncio.sleep(1)
 
     if measurement is None:
         await sargs.handle_co2_sensor_fault()
+    return measurement
