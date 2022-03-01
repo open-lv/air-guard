@@ -205,7 +205,7 @@ class Sargs:
                 self.log.error("MQTT connection class AirGuardIotMQTTClient not implemented")
             else:
                 # TODO: Enable this only if users opt-in.
-                self.mqtt_client = AirGuardIotMQTTClient("123", "123")
+                self.mqtt_client = AirGuardIotMQTTClient(self.machine_id, self.machine_id)
                 self.log.info("mqtt initialized")
 
         except ImportError:
