@@ -254,7 +254,7 @@ class AirGuardIotMQTTClient(MQTTClient):
     """Implements the Air Guard MQTT client API."""
 
     def __init__(self, username, password):
-        self.log = logging.getLogger("airguard-mqtt")
+        self.log = logging.getLogger("mqtt_client")
 
         super().__init__(client_id=username, 
                          server="mqtt.gaisasargs.lv",
