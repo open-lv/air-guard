@@ -180,7 +180,8 @@ class Sargs:
         self.co2_measurement = m
         if self.mqtt_client:
             try:
-                self.mqtt_client.handle_co2_measurement(m, self.co2_sensor.get_cached_temperature_reading())
+                payload = '{ "co2": %d, "temperature": %d }' % (self.co2_measurement, self.co2_sensor.get_cached_temperature_reading())
+                self.mqtt_client.send_telemetry(payload)
             except (MQTTException, OSError) as e:
                 self.log.error("error during mqtt publishing: %s" % repr(e))
                 self.log.info("re-connecting to mqtt")
@@ -200,17 +201,12 @@ class Sargs:
     def connect_mqtt(self):
         """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
         try:
-            import config
-
-            mqtt_class = getattr(mqtt, config.MQTT_CLASS, None)
-            if not mqtt_class:
-                self.log.error("MQTT connection class '%s' not implemented" % config.MQTT_CLASS)
+            if not AirGuardIotMQTTClient:
+                self.log.error("MQTT connection class AirGuardIotMQTTClient not implemented")
             else:
-                if getattr(config, "MQTT_CLIENT_ID", None):
-                    self.mqtt_client = mqtt_class(config)
-                    self.log.info("mqtt initialized")
-                else:
-                    self.log.error("missing mqtt client configuration")
+                # TODO: Enable this only if users opt-in.
+                self.mqtt_client = AirGuardIotMQTTClient("123", "123")
+                self.log.info("mqtt initialized")
 
         except ImportError:
             self.log.info("mqtt requires valid configuration")

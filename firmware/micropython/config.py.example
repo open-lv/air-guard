@@ -5,18 +5,3 @@ WIFI_PASSWORD = ""
 
 # To enable Captive portal
 CAPTIVE_PORTAL_ENABLED = True
-
-# MQTT common configuration
-MQTT_CLIENT_ID=""
-MQTT_USERNAME=MQTT_CLIENT_ID
-MQTT_PASSWORD=""
-
-# interval between published messages, seconds
-MQTT_PUBLISH_INTERVAL_S = 60
-
-# Thingspeak channel id
-MQTT_TS_CHANNEL=""
-
-# Select which MQTT implementation to use
-# Currently implemented: ThingspeakMQTTClient, requires MQTT_TS_CHANNEL
-MQTT_CLASS = "ThingspeakMQTTClient"

@@ -4,6 +4,9 @@ from utime import ticks_ms
 import logging
 import math
 
+# For AirGuardIotMQTTClient
+from umqtt.simple import MQTTClient
+
 
 class LEDSignal(Signal):
 
@@ -246,3 +249,31 @@ class EyeAnimation:
             self._anim_tick += 1
             return True
         return self.advance()
+
+class AirGuardIotMQTTClient(MQTTClient):
+    """Implements the Air Guard MQTT client API."""
+
+    def __init__(self, username, password):
+        self.log = logging.getLogger("airguard-mqtt")
+
+        super().__init__(client_id=username, 
+                         server="mqtt.gaisasargs.lv",
+                         user=username, 
+                         password=password)
+
+        self.log.info(
+            "thingspeak mqtt client initialized, server=%s, client_id=%s, user=%s" % (
+            self.server, 
+            self.client_id, 
+            self.user))
+
+        self.publish_interval_s = 60
+        self.next_publish_time_ms = 0
+
+    def send_telemetry(self, payload):
+        if ticks_ms() > self.next_publish_time_ms:
+            self.next_publish_time_ms = ticks_ms() + self.publish_interval_s * 1000
+            self.log.info("publishing sensor measurements payload: %s" % (payload))
+            self.connect()
+            self.publish("v1/devices/me/telemetry", payload)
+            self.disconnect()
