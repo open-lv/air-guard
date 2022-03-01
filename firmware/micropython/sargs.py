@@ -180,7 +180,8 @@ class Sargs:
         self.co2_measurement = m
         if self.mqtt_client:
             try:
-                payload = '{ "co2": %d, "temperature": %d }' % (self.co2_measurement, self.co2_sensor.get_cached_temperature_reading())
+                payload = '{ "co2": %d, "temperature": %d, firmwareVersion: "%s" }' % (
+                    self.co2_measurement, self.co2_sensor.get_cached_temperature_reading(), self.version)
                 self.mqtt_client.send_telemetry(payload)
             except (MQTTException, OSError) as e:
                 self.log.error("error during mqtt publishing: %s" % repr(e))
