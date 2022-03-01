@@ -530,7 +530,8 @@ class SargsUI:
         self.screen.drawText(self.screen.width() - self.screen.getTextWidth(text),
                              self.screen.height() - self.screen.getTextHeight(text) - 2,
                              text)
+        await uasyncio.sleep_ms(1)
         if sp[1].have_enough_data():
-            sp[1].plot_data(self.screen, 0)
+            await sp[1].plot_data(self.screen, 0)
         else:
             await self.draw_hcenter_text(24, "Nepietiek datu!")
