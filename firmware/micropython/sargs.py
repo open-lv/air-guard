@@ -217,7 +217,7 @@ class Sargs:
 
     async def run_screen(self):
         # update screen state
-        if self.co2_sensor.sensor_warmed_up:
+        if self.co2_measurement:
             self.ui.set_co2_measurement(self.co2_measurement)
             self.ui.set_temperature_measurement(self.co2_sensor.get_cached_temperature_reading())
             if self.led_red.value():
