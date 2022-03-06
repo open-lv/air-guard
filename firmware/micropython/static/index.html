@@ -3,11 +3,37 @@
   <head>
     <meta charset="utf-8" />
     <title>Gaisa Sargs - Portāls</title>
-    <link href="bootstrap.min.css" rel="stylesheet" />
-    <link href="style.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preload" href="bootstrap.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="bootstrap.min.css"></noscript>
+    <link rel="preload" href="style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="style.css"></noscript>
+    <style>
+      .app-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        min-height: 50vh;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 10vh;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app" class="app-loading">
+      <div>
+        <h1>Gaisa Sargs</h1>
+        <p>Notiek ielāde, lūdzu, uzgaudiet...</p>
+      </div>
+    </div>
+    <footer class="footer">
+      Vairāk uzzini:
+      <a href="https://gaisasargs.lv/salikt">https://gaisasargs.lv/salikt</a>
+    </footer>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
