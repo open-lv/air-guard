@@ -324,7 +324,7 @@ async def perform_co2_measurement():
         heating_start_time = time.ticks_ms()
         while (time.ticks_ms() - heating_start_time) < 120 * 1000:
             if sargs.co2_sensor.get_co2_reading() is not None:
-                await uasyncio.sleep_ms(1)
+                await uasyncio.sleep_ms(0)
                 break
             await uasyncio.sleep(1)
 
@@ -332,7 +332,7 @@ async def perform_co2_measurement():
     measurement = None
     for _ in range(3):
         measurement = sargs.co2_sensor.get_co2_reading()
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         if measurement is not None:
             break
         await uasyncio.sleep(1)

@@ -165,6 +165,7 @@ class SargsUI:
     eye_next_blink_ticks_ms = 0
     async def update(self):
         self.process_ldr()
+        await uasyncio.sleep_ms(0)
         if self.eye_animation and not self.eye_animation.tick():
             self.eye_animation = None
 
@@ -188,7 +189,7 @@ class SargsUI:
             # reset the next blink time while animation is in progress
             self.eye_next_blink_ticks_ms = ticks_ms() + 5000
         self.screen.drawFill(0)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         screen_fn_map = {
             ScreenState.INIT_SCREEN: self.draw_init_screen,
             ScreenState.MAIN_SCREEN: self.draw_main_screen,
@@ -202,7 +203,7 @@ class SargsUI:
         if self.current_screen in screen_fn_map.keys():
             await screen_fn_map[self.current_screen]()
         self.screen.flush()
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
         # if CO2 level has just become high
         if self.co2_level == CO2Level.HIGH and self.prev_co2_level != self.co2_level:
@@ -289,17 +290,17 @@ class SargsUI:
         temp_font = "graphik_bold16"
         temp_x = 58
         self.screen.drawText(temp_x, -11, temp_text, 0xffffff, temp_font, 1, 1)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         # position of degree symbol based on displayed value
         deg_x = temp_x + self.screen.getTextWidth(temp_num, temp_font) + 3
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         self.screen.drawCircle(deg_x, 3, 3, 0, 360, False, 0xFFFFFF)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
         # CO2 sensor measurement
         ppm_t = str(self.co2_measurement)
         self.screen.drawText(48, 20, ppm_t, 0xffffff, "graphik_bold20", 1, 1)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
         # PPM text
         await self.drawPng(0, 47, '/assets/ppm/ppm17.png')
@@ -353,13 +354,13 @@ class SargsUI:
 
         fonts = ["graphik_bold16", "graphik_bold20"]
         x = (self.screen.width() - self.screen.getTextWidth(ppm_t, fonts[idx])) // 2
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         y = (self.screen.height() - self.screen.getTextHeight(ppm_t, fonts[idx])) // 2 - 5
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
 
         self.screen.drawText(x, y, ppm_t, 0xffffff, fonts[idx])
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
         if self.co2_level == CO2Level.LOW:
             await self.buzzer.short_beep()
@@ -374,9 +375,9 @@ class SargsUI:
     async def draw_hcenter_text(self, y, text):
         """Draws a horizontally centered line of text at specified offset from top"""
         x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         self.screen.drawText(x, y, text)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
     async def draw_calibration_screen(self):
 
@@ -427,11 +428,11 @@ class SargsUI:
 
     async def draw_button(self, x, y, text, selected):
         self.screen.drawText(x + 3, y + 3, text)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         if selected:
             self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,
                                  self.screen.getTextHeight(text) + 7, False, 0xffffff)
-            await uasyncio.sleep_ms(1)
+            await uasyncio.sleep_ms(0)
 
 #     TODO - replace current main view with this, current main view as second / third smth view
 
@@ -458,19 +459,19 @@ class SargsUI:
         ppm_text = str(self.co2_measurement)
         ppm_font = "graphik_bold20"
         ppm_text_w = self.screen.getTextWidth(ppm_text, ppm_font)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         self.screen.drawText((self.screen.width() - ppm_text_w) // 2, 2, ppm_text, 0x000000, ppm_font, 1, 1)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
         temp_text = str(self.temperature_measurement)
         temp_font = "7x5"
         temp_text_w = self.screen.getTextWidth(temp_text, temp_font)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         temp_x = 58
         self.screen.drawText(temp_x, 0, temp_text, 0xFFFFFF, temp_font, 1, 1)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         self.screen.drawCircle(temp_x + temp_text_w + 2 , 1, 1, 0, 360, False, 0xFFFFFF)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
     credits_frame = 0
     credits_frame_range = list(range(0, 25))
@@ -501,7 +502,7 @@ class SargsUI:
 
     async def drawPng(self, x_pos, y_pos, fn):
         self.screen.drawPng(x_pos, y_pos, fn)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
 
     async def draw_15min_plot_screen(self):
         await self.draw_plot_screen(0)
@@ -530,7 +531,7 @@ class SargsUI:
         self.screen.drawText(self.screen.width() - self.screen.getTextWidth(text),
                              self.screen.height() - self.screen.getTextHeight(text) - 2,
                              text)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         if sp[1].have_enough_data():
             await sp[1].plot_data(self.screen, 0)
         else:
