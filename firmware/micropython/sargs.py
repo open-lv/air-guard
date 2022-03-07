@@ -127,7 +127,7 @@ class Sargs:
         for _ in range(3):
             try:
                 self.co2_sensor = mhz19.MHZ19(UART(self.co2_sensor_uart, 9600, timeout=1000))
-                mhz_initialized = self.co2_sensor.verify()
+                mhz_initialized = await self.co2_sensor.verify()
                 if mhz_initialized:
                     break
             except mhz19.MHZ19Exception:
@@ -139,7 +139,7 @@ class Sargs:
         else:
             # turn off ABC calibration, as it would be an optimistic assumption that classrooms reach 400ppm
             # in any given day
-            self.co2_sensor.set_abc_state(False)
+            await self.co2_sensor.set_abc_state(False)
 
     async def handle_co2_sensor_fault(self):
         self.exit_requested = True
@@ -300,7 +300,7 @@ class Sargs:
             try:
                 while not self.exit_requested:
                     await self.run_screen()
-                    await uasyncio.sleep_ms(30) # not more than 60FPS
+                    await uasyncio.sleep_ms(0) # not more than 60FPS
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
                 self.exit_requested = True
@@ -323,16 +323,14 @@ async def perform_co2_measurement():
         sargs.user_main_loop_started = True
         heating_start_time = time.ticks_ms()
         while (time.ticks_ms() - heating_start_time) < 120 * 1000:
-            if sargs.co2_sensor.get_co2_reading() is not None:
-                await uasyncio.sleep_ms(0)
+            if await sargs.co2_sensor.get_co2_reading() is not None:
                 break
             await uasyncio.sleep(1)
 
     # retry measurement up to three times, then give up and trigger error
     measurement = None
     for _ in range(3):
-        measurement = sargs.co2_sensor.get_co2_reading()
-        await uasyncio.sleep_ms(0)
+        measurement = await sargs.co2_sensor.get_co2_reading()
         if measurement is not None:
             break
         await uasyncio.sleep(1)
