@@ -116,7 +116,16 @@ class Portal:
         yield "]"
 
     @server.resource('/api/stations/select', method='POST')
-    async def selectStation(data: dict):
+    def selectStation(data: dict):
+        if data.get('ssid') and not isinstance(data.get('ssid'), str):
+            return {
+                       "error": '"ssid" must be of type "string"'
+                   }, 400
+        if data.get('password') and not isinstance(data.get('password'), str):
+            return {
+                       "error": '"password" must be of type "string"'
+                   }, 400
+
         sargs.update_wifi_settings(data.get('ssid'), data.get('password'))
 
     async def serveStaticFile(request, response):
