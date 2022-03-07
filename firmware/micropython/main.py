@@ -29,10 +29,23 @@ async def measurements():
         await uasyncio.sleep(5)
 
 
+def set_global_exception():
+    def handle_exception(loop, context):
+        import sys
+        sys.print_exception("Unhandled exception in async function: %s" % context["exception"])
+        sys.exit()
+
+    loop = uasyncio.get_event_loop()
+    loop.set_exception_handler(handle_exception)
+
+
 async def setup():
     import gc
     log.info("mem_free=%d" % gc.mem_free())
     log.info("Setting up Sargs")
+
+    set_global_exception()  # Debug aid
+
     await sargs.setup()
 
     log.info("mem_free=%d" % gc.mem_free())
