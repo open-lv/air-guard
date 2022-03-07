@@ -78,7 +78,7 @@ class Portal:
                                  content_encoding="gzip")
 
     @server.resource('/api/state')
-    def sargsState(self):
+    def sargsState(data):
         is_connected = sargs.ui.wifi_state == sargsui.WiFiState.CONNECTED
         is_internet = sargs.ui.internet_state == sargsui.InternetState.CONNECTED
         connected_ssid = sargs.get_connected_ssid()
@@ -96,7 +96,7 @@ class Portal:
         }
 
     @server.resource('/api/stations')
-    async def stations(self):
+    async def stations(data):
         access_points = sargs.get_wifi_ap_list()
 
         yield "["
@@ -114,6 +114,10 @@ class Portal:
                 yield ","
 
         yield "]"
+
+    @server.resource('/api/stations/select', method='POST')
+    async def selectStation(data: dict):
+        sargs.update_wifi_settings(data.get('ssid'), data.get('password'))
 
     async def serveStaticFile(request, response):
         path = request.path.decode()

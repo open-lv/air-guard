@@ -167,18 +167,14 @@ class Sargs:
                 self.log.info("re-connecting to mqtt")
                 self.connect_mqtt()
 
-    def set_wifi_settings(self, wifi_ssid, wifi_password):
-        if not self.network_manager:
-            self.log.error("Trying to set WIFI settings without network manager")
-            return
-
+    def update_wifi_settings(self, wifi_ssid, wifi_password):
         self.config.WIFI_SSID = wifi_ssid
         self.config.WIFI_PASSWORD = wifi_password
-        self.network_manager.wifi_ssid = wifi_ssid
-        self.network_manager.wifi_password = wifi_password
 
-        self.log.info("WiFi has been set, restarting Network Manager")
-        self.network_manager.restart()
+        self.config.save()
+
+        self.log.info("WiFi settings saved, restarting...")
+        machine.reset()
 
     def connect_mqtt(self):
         """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
