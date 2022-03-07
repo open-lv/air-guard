@@ -15,6 +15,7 @@ from umqtt.simple import MQTTException
 from utils import *
 from utime import ticks_ms
 import network_manager
+import config
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,11 +56,6 @@ class Sargs:
     co2_measurement = None
     user_main_loop_started = False
 
-    _wifi_enabled = True
-    _captive_portal_enabled = True
-    _wifi_ssid = None
-    _wifi_password = None
-
     network_manager = None
     _internet_checker_task: uasyncio.Task = None
     _sta_if = network.WLAN(network.STA_IF)
@@ -73,6 +69,8 @@ class Sargs:
 
     machine_id = binascii.hexlify(machine.unique_id()).decode("ascii")
     machine_id_short = machine_id[:6]
+
+    config = config.sargsConfig
 
     def __init__(self):
         self.log = logging.getLogger("sargs")
@@ -91,10 +89,6 @@ class Sargs:
         self.log.info("Initializing hardware")
         await self._init_lcd()
         await self._init_co2_sensor()
-
-        # initialize configuration from config.py
-        self.log.info("Initializing stored config")
-        self._init_config()
 
     async def _init_lcd(self):
         # initializing screen can fail if it doesn't respond to I2C commands, blink red LED and reboot
@@ -163,19 +157,6 @@ class Sargs:
             await uasyncio.sleep(0.5)
         reset()
 
-    def _init_config(self):
-
-        # config file can be non-existant
-        try:
-            import config
-            self._wifi_enabled = config.WIFI_ENABLED
-            self._captive_portal_enabled = config.CAPTIVE_PORTAL_ENABLED
-            self._wifi_ssid = config.WIFI_SSID
-            self._wifi_password = config.WIFI_PASSWORD
-            self.log.info("config imported")
-        except ImportError:
-            self.log.info("config does not exist, skipping")
-
     def handle_co2_measurement(self, m):
         self.co2_measurement = m
         if self.mqtt_client:
@@ -191,20 +172,20 @@ class Sargs:
             self.log.error("Trying to set WIFI settings without network manager")
             return
 
-        self._wifi_ssid = wifi_ssid
-        self._wifi_password = wifi_password
+        self.config.WIFI_SSID = wifi_ssid
+        self.config.WIFI_PASSWORD = wifi_password
         self.network_manager.wifi_ssid = wifi_ssid
         self.network_manager.wifi_password = wifi_password
+
+        self.log.info("WiFi has been set, restarting Network Manager")
         self.network_manager.restart()
 
     def connect_mqtt(self):
         """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
         try:
-            import config
-
-            mqtt_class = getattr(mqtt, config.MQTT_CLASS, None)
+            mqtt_class = getattr(mqtt, self.config.MQTT_CLASS, None)
             if not mqtt_class:
-                self.log.error("MQTT connection class '%s' not implemented" % config.MQTT_CLASS)
+                self.log.error("MQTT connection class '%s' not implemented" % self.config.MQTT_CLASS)
             else:
                 if getattr(config, "MQTT_CLIENT_ID", None):
                     self.mqtt_client = mqtt_class(config)
@@ -296,13 +277,13 @@ class Sargs:
         It should handle re-drawing screen, handling WiFi status polling, 
         calibration statemachine (and probably something else I haven't thought about yet)
         """
-        if self._wifi_enabled:
-            if not self._wifi_ssid and not self._captive_portal_enabled:
+        if self.config.WIFI_ENABLED:
+            if not self.config.WIFI_SSID and not self.config.CAPTIVE_PORTAL_ENABLED:
                 self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
             else:
 
-                self.network_manager = network_manager.NetworkManager(self._wifi_ssid, self._wifi_password,
-                                                                      captive_portal_enabled=self._captive_portal_enabled,
+                self.network_manager = network_manager.NetworkManager(self.config.WIFI_SSID, self.config.WIFI_PASSWORD,
+                                                                      captive_portal_enabled=self.config.CAPTIVE_PORTAL_ENABLED,
                                                                       captive_portal_ssid="GaisaSargs-%s" % self.machine_id_short,
                                                                       on_connected=self._on_network_manager_connected,
                                                                       on_disconnected=self._on_network_manager_disconnected,

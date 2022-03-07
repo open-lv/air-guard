@@ -1,0 +1,12 @@
+{
+  "wifiEnabled": true,
+  "wifiSsid": null,
+  "wifiPassword": null,
+  "captivePortalEnabled": true,
+  "mqttClientId": "",
+  "mqttUsername": "",
+  "mqttPassword": "",
+  "mqttPublishIntervalS": 60,
+  "mqttTsChannel": "",
+  "mqttClass": "ThingspeakMQTTClient"
+}

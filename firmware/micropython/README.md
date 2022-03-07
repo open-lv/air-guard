@@ -19,14 +19,14 @@ Startup error conditions
 Configuration
 ----------------------
 
-To enable WiFi functionality, copy the config.py.example file to config.py and enter the configuration details in the file.
+To enable WiFi functionality, copy the config.json.example file to config.json and enter the configuration details in the file.
 
-To enable publishing to ThingSpeak channel, fill in the following configuration in config.py:
+To enable publishing to ThingSpeak channel, fill in the following configuration in config.json:
     
-  * MQTT_CLIENT_ID = "ThingSpeak client ID"
-  * MQTT_PASSWORD = "ThingSpeak MQTT device password"
-  * MQTT_TS_CHANNEL = "ThingSpeak channel ID"
-  * MQTT_CLASS = "ThingspeakMQTTClient"
+  * mqttClientId = "ThingSpeak client ID"
+  * mqttPassword = "ThingSpeak MQTT device password"
+  * mqttTsId = "ThingSpeak channel ID"
+  * mqttClass = "ThingspeakMQTTClient"
 
 CO2 sensor calibration
 --------------------------

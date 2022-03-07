@@ -108,6 +108,10 @@ rm -r build/static/mock/
 sed -i'' -e "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
 gzip -r build/static/*
 
+if [ -f "../../firmware/micropython/config.json" ]; then
+  cp ../../firmware/micropython/config.json build/
+fi
+
 # create a version file
 AIRGUARD_VERSION=`git describe`
 echo "VERSION='$AIRGUARD_VERSION'" > build/airguardversion.py
