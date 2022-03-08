@@ -92,11 +92,14 @@ export default {
       }
     },
     async submitStation() {
+      if (!confirm("Mainot WiFi iestatījumus, Gaisa Sargs restartēsies.\nVai turpināt?")) {
+        return;
+      }
       if (this.retrier) {
         clearTimeout(this.retrier);
       }
       await sargsAPI.submitStation(
-        this.selected.bssid,
+        this.selected.ssid,
         this.selected.authmode !== "open" ? this.psk : null
       );
       this.retrier = setTimeout(this._retryFn, 1000, 10);

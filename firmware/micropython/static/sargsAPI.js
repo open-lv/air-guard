@@ -21,6 +21,7 @@ const submitData = (url, data) => {
     headers: {
       "Content-Type": "application/json",
     },
+    body: JSON.stringify(data),
   });
 };
 
@@ -31,7 +32,7 @@ export default {
   fetchStations: () => {
     return loadData("api/stations");
   },
-  submitStation: (bssid, psk) => {
-    submitData("select-station", { bssid, psk });
+  submitStation: (ssid, password) => {
+    submitData("api/stations/select", { ssid, password });
   },
 };
