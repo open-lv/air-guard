@@ -1,6 +1,8 @@
+import gc
+
 import uasyncio
 from sargs import *
-import portal
+import time
 
 log = logging.getLogger("main")
 
@@ -68,11 +70,43 @@ async def setup():
 
     log.info("mem_free=%d" % gc.mem_free())
     log.info("Setting up tasks")
-    portal.setup()
     uasyncio.create_task(sargs.run())
+    uasyncio.create_task(metrics()())
 
     log.info("mem_free=%d" % gc.mem_free())
     await measurements()
+
+
+def metrics():
+    ncalls = 0
+    max_d = 0
+    min_d = 100_000_000
+    tot_d = 0
+    st = 'Max {}us Min {}us Avg {}us No. of calls {} Freq {}'
+
+    async def func():
+        nonlocal ncalls, max_d, min_d, tot_d
+        while True:
+            tstart = time.ticks_us()
+            t_last = None
+            while time.ticks_diff(t := time.ticks_us(), tstart) < 10_000_000:
+                await uasyncio.sleep(0)
+                if ncalls:
+                    dt = time.ticks_diff(t, t_last)
+                    max_d = max(max_d, dt)
+                    min_d = min(min_d, dt)
+                    tot_d += dt
+                ncalls += 1
+                t_last = t
+            log.info(st.format(max_d, min_d, tot_d // ncalls, ncalls, ncalls // 10))
+            gc.collect()
+            log.info('mem_free = {}'.format( gc.mem_free()))
+            ncalls = 0
+            max_d = 0
+            min_d = 100_000_000
+            tot_d = 0
+
+    return func
 
 
 try:
