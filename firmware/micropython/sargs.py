@@ -252,20 +252,24 @@ class Sargs:
 
     def _on_network_manager_connected(self):
         self.ui.set_wifi_state(sargsui.WiFiState.CONNECTED)
+        self.ui.set_display_ip_address(self._sta_if.ifconfig()[0])
         self.connect_mqtt()
         self._internet_checker_task = uasyncio.create_task(self._check_internet())
 
     def _on_network_manager_disconnected(self):
         self.ui.set_wifi_state(sargsui.WiFiState.DISCONNECTED)
+        self.ui.set_display_ip_address(None)
         if self.mqtt_client:
             self.mqtt_client = None
         self._internet_checker_task.cancel()
 
     def _on_network_manager_connecting(self):
         self.ui.set_wifi_state(sargsui.WiFiState.CONNECTING)
+        self.ui.set_display_ip_address(None)
 
     def _on_network_manager_ap_enabled(self):
         self.ui.set_wifi_state(sargsui.WiFiState.ACCESS_POINT)
+        self.ui.set_display_ip_address(self._ap_if.ifconfig()[0])
 
     async def run(self):
         """
@@ -278,7 +282,6 @@ class Sargs:
                 self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
             else:
                 import portal
-
                 self.network_manager = network_manager.NetworkManager(self.config.WIFI_SSID, self.config.WIFI_PASSWORD,
                                                                       captive_portal_enabled=self.config.CAPTIVE_PORTAL_ENABLED,
                                                                       captive_portal_ssid="GaisaSargs-%s" % self.machine_id_short,
