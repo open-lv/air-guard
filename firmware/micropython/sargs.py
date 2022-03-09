@@ -277,6 +277,7 @@ class Sargs:
             if not self.config.WIFI_SSID and not self.config.CAPTIVE_PORTAL_ENABLED:
                 self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
             else:
+                import portal
 
                 self.network_manager = network_manager.NetworkManager(self.config.WIFI_SSID, self.config.WIFI_PASSWORD,
                                                                       captive_portal_enabled=self.config.CAPTIVE_PORTAL_ENABLED,
@@ -287,6 +288,8 @@ class Sargs:
                                                                       on_connecting=self._on_network_manager_connecting,
                                                                       )
                 self.network_manager.start()
+
+                portal.setup()
         else:
             self.log.warning("WIFI not enabled")
 
