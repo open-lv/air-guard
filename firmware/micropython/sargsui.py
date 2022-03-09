@@ -52,12 +52,17 @@ class SargsUI:
     internet_state = InternetState.DISCONNECTED
     current_screen = ScreenState.INIT_SCREEN
     calibration_requested = False
+    display_ip_address = None
     WIFI_STATE_DESC = {
         WiFiState.UNCONFIGURED: "nav konf.",
-        WiFiState.ACCESS_POINT: "piekļ. p.",
+        WiFiState.ACCESS_POINT: "piekl. p.",
         WiFiState.DISCONNECTED: "atvienots",
         WiFiState.CONNECTING: "savienojas",
         WiFiState.CONNECTED: "savienots",
+    }
+    INTERNET_STATE_DESC = {
+        InternetState.CONNECTED: "ir",
+        InternetState.DISCONNECTED: "nav"
     }
     CO2_LEVEL_DESC = {
         CO2Level.LOW: "LABS GAISS!",
@@ -126,6 +131,9 @@ class SargsUI:
     def set_internet_state(self, s):
         self.internet_state = s
 
+    def set_display_ip_address(self, ip):
+        self.display_ip_address = ip
+
     def set_co2_level(self, l):
         self.co2_level = l
 
@@ -135,7 +143,7 @@ class SargsUI:
         self.frame_display_ms = 0
 
     def select_last_main_subscreen(self):
-        self.main_selected_subscreen = len(self.main_subscreens) - 1
+        self.main_selected_subscreen = len(self.main_subscreens) - 2
 
     def select_cal_screen(self):
         self.cal_screen_negedge_count = 0
@@ -248,7 +256,7 @@ class SargsUI:
     main_selected_subscreen = 0
     main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen",
                        "draw_15min_plot_screen", "draw_1h_plot_screen", "draw_12h_plot_screen", "draw_24h_plot_screen",
-                       "draw_credits_screen",
+                       "draw_network_screen", "draw_credits_screen",
                        ]
 
     async def draw_main_screen(self):
@@ -536,3 +544,10 @@ class SargsUI:
             await sp[1].plot_data(self.screen, 0)
         else:
             await self.draw_hcenter_text(24, "Nepietiek datu!")
+
+    async def draw_network_screen(self):
+        await self.draw_hcenter_text(10, "WiFi: " + self.WIFI_STATE_DESC[self.wifi_state])
+        await self.draw_hcenter_text(30, "Internets: " + self.INTERNET_STATE_DESC[self.internet_state])
+
+        if self.display_ip_address:
+            await self.draw_hcenter_text(50, "IP: " + self.display_ip_address)
