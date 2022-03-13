@@ -36,12 +36,8 @@ class OTA:
 
     def reset_ota_state(self, status):
         try:
-            ota_utils.restore_original()
-
             with open("_ota_status", "w") as f:
                 f.write(status)
-
-            machine.reset()
         except Exception as e:
             self._log("!!! Failed to reset OTA state !!!")
             self._log_exception(e)
@@ -75,6 +71,7 @@ class OTA:
             self.ota_started_time = utime.ticks_ms()
             if self.is_ota_in_progress():
                 self._log("OTA already in progress, resetting state")
+                ota_utils.restore_original()
                 return self.reset_ota_state(ota_utils.STATUS_CANCELLED)
 
             self._log('Starting OTA update: "%s"' % name)
@@ -92,13 +89,15 @@ class OTA:
 
             release = self.select_release(name)
 
+            dir_name = release["name"].replace(".", "_").replace("-", "_")
+
             ota_utils.remove_all_versions()
 
-            self.download_and_install(release["name"], release["asset_url"])
+            self.download_and_install(dir_name, release["asset_url"])
 
             with open("main.py", "w") as f:
-                f.write("import %s.main\n" % name)
-                f.write("import %s.main.run()\n" % name)
+                f.write("import %s.main\n" % dir_name)
+                f.write("%s.main.run()\n" % dir_name)
 
             self.reset_ota_state(ota_utils.STATUS_FINISHED)
             self._log('OTA update completed successfully in %d seconds: "%s" "%s"' % (
@@ -106,6 +105,7 @@ class OTA:
         except Exception as e:
             self._log('Error performing OTA update: "%s"' % name)
             self._log_exception(e)
+            ota_utils.restore_original()
             self.reset_ota_state(ota_utils.STATUS_FAILED)
         finally:
             print("Resetting device")
