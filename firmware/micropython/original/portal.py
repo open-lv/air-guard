@@ -1,4 +1,7 @@
+import machine
 import ujson as json
+
+import re
 
 import tinyweb
 import os
@@ -117,6 +120,19 @@ class Portal:
                 yield ","
 
         yield "]"
+
+    @server.resource('/api/ota/prepare', method='POST')
+    def ota_prepare(data:dist):
+        if not data.get('version_name') or not isinstance(data.get('version_name'), str):
+            return {
+                       "error": '"version_name" must be of type "string"'
+                   }, 400
+        version_name = data.get('version_name')
+        if not re.match("^micropython-[0-9]\.[0-9]+\.[0-9]+$", version_name):
+            return {
+                       "error": 'Invalid "version_name" supplied'
+                   }, 400
+        sargs.Sargs.sargs_instance.prepare_ota(version_name)
 
     @server.resource('/api/stations/select', method='POST')
     def selectStation(data: dict):

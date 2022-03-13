@@ -69,7 +69,7 @@ class OTA:
         sta_if.active(False)
         return False
 
-    def perform_update(self, name, tar_url):
+    def perform_update(self, name):
         self.clear_log_file()
         try:
             self.ota_started_time = utime.ticks_ms()
@@ -77,7 +77,7 @@ class OTA:
                 self._log("OTA already in progress, resetting state")
                 return self.reset_ota_state(ota_utils.STATUS_CANCELLED)
 
-            self._log('Starting OTA update: "%s" "%s"' % (name, tar_url))
+            self._log('Starting OTA update: "%s"' % name)
             with open("_ota_status", "w") as f:
                 f.write(ota_utils.STATUS_IN_PROGRESS)
 
@@ -90,10 +90,12 @@ class OTA:
 
             gc.collect()
 
+            release = self.select_release(name)
+
             if name in os.listdir():
                 ota_utils.rmrf(name)
 
-            self.download_and_install(name, tar_url)
+            self.download_and_install(release["name"], release["asset_url"])
 
             with open("main.py", "w") as f:
                 f.write("import %s.main\n" % name)
@@ -101,12 +103,13 @@ class OTA:
 
             self.reset_ota_state(ota_utils.STATUS_FINISHED)
             self._log('OTA update completed successfully in %d seconds: "%s" "%s"' % (
-            (utime.ticks_ms() - self.ota_started_time) / 1000, name, tar_url))
+                (utime.ticks_ms() - self.ota_started_time) / 1000, name, release["asset_url"]))
         except Exception as e:
-            self._log('Error performing OTA update: "%s" "%s"' % (name, tar_url))
+            self._log('Error performing OTA update: "%s"' % name)
             self._log_exception(e)
             self.reset_ota_state(ota_utils.STATUS_FAILED)
         finally:
+            print("Resetting device")
             machine.reset()
 
     def get_releases(self):
@@ -122,6 +125,12 @@ class OTA:
                 break
 
         return micropython_releases
+
+    def select_release(self, name):
+        for release in self.get_releases():
+            if release["name"] == name:
+                return release
+        raise Exception('Error retrieving release "%s"' % name)
 
     def download_and_install(self, name, tar_url):
         f1 = self.url_open(tar_url)

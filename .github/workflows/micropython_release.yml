@@ -15,6 +15,9 @@ jobs:
     - name: Build package
       run: tools/flasher/build.sh
 
+    - name: Add version
+      run: echo "${{ github.ref_name }}" > build/airguardversion.py
+
     - name: TAR package
       run: tar -cvf micropython.tar -C ./build $(ls ./build)
 

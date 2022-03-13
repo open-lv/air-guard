@@ -235,6 +235,20 @@ class Sargs:
 
         return stations
 
+    def prepare_ota(self, version_name):
+        self.log.info("Written new main.py for OTA")
+        with open("main.py") as f:
+            f.write("""
+
+import ota
+ota = ota.OTA()
+ota.perform_update("%s")
+
+""" % version_name)
+
+        self.log.info("OTA information saved, restarting...")
+        machine.reset()
+
     async def _check_internet(self):
         self.log.info("Internet connectivity checker started")
 
