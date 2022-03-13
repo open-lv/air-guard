@@ -13,13 +13,10 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Build package
-      run: tools/flasher/build.sh
-
-    - name: Add version
-      run: echo "${{ github.ref_name }}" > build/airguardversion.py
+      run: tools/flasher/build.sh "${{ github.ref_name }}"
 
     - name: TAR package
-      run: tar -cvf micropython.tar -C ./build $(ls ./build)
+      run: tar -cvf micropython.tar -C ./build/original $(ls ./build/original)
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v2

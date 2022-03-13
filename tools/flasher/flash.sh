@@ -98,11 +98,7 @@ fi
 
 green "Using firmware binary: $FIRMWARE_FILE_NAME"
 # Collect build
-./build.sh
-
-# create a version file
-AIRGUARD_VERSION=`git describe`
-echo "VERSION='$AIRGUARD_VERSION'" > build/airguardversion.py
+./build.sh "$(git describe)"
 
 if [ -f "../../firmware/micropython/config.json" ]; then
   yellow "Using preconfigured \"config.json\""

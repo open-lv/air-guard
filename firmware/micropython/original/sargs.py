@@ -81,7 +81,7 @@ class Sargs:
 
         # flash.sh/release process stores version in airguardversion.py file
         try:
-            import airguardversion
+            from . import airguardversion
             self.version = airguardversion.VERSION
         except ImportError:
             pass

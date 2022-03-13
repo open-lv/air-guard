@@ -21,5 +21,8 @@ rm -r build/original/static/mock/
 sed -i'' -e "s:const mock = true;:const mock = false;:g" build/original/static/sargsAPI.js
 gzip -r build/original/static/*
 
+# create a version file
+echo "VERSION='${1}'" > build/original/airguardversion.py
+
 echo "Build collection finished"
 set +e
