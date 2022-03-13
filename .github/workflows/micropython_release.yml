@@ -12,8 +12,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Build package
+      run: tools/flasher/build.sh
+
     - name: TAR package
-      run: tar -cvf micropython.tar -C ./firmware/micropython $(ls ./firmware/micropython)
+      run: tar -cvf micropython.tar -C ./build $(ls ./build)
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v2

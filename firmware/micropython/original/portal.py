@@ -4,8 +4,8 @@ import tinyweb
 import os
 import binascii
 
-from sargs import sargs
-import sargsui
+from . import sargs
+from . import sargsui
 
 
 def decode_station_authmode(authmode):
@@ -22,6 +22,9 @@ def decode_station_authmode(authmode):
     return "unknown"
 
 
+runtime_dir = __file__[:__file__.rindex("/")]
+
+
 class CaptiveWebserver(tinyweb.webserver):
     def __init__(self, ip_addr, request_timeout=3, max_concurrency=3, backlog=16, buffer_size=128, debug=False):
         super().__init__(request_timeout, max_concurrency, backlog, buffer_size, debug)
@@ -32,7 +35,7 @@ class CaptiveWebserver(tinyweb.webserver):
         await resp.redirect(redirect_uri)
 
     async def _handle_request(self, req, resp):
-        if sargs.ui.wifi_state != sargsui.WiFiState.ACCESS_POINT:
+        if sargs.Sargs.sargs_instance.ui.wifi_state != sargsui.WiFiState.ACCESS_POINT:
             await super()._handle_request(req, resp)
             return
 
@@ -74,18 +77,18 @@ class Portal:
 
     @server.route('/')
     async def index(request, response):
-        await response.send_file('static/index.html.gz', content_type="text/html; charset=UTF-8",
+        await response.send_file(runtime_dir + '/static/index.html.gz', content_type="text/html; charset=UTF-8",
                                  content_encoding="gzip")
 
     @server.resource('/api/state')
     def sargsState(data):
-        is_connected = sargs.ui.wifi_state == sargsui.WiFiState.CONNECTED
-        is_internet = sargs.ui.internet_state == sargsui.InternetState.CONNECTED
-        connected_ssid = sargs.get_connected_ssid()
+        is_connected = sargs.Sargs.sargs_instance.ui.wifi_state == sargsui.WiFiState.CONNECTED
+        is_internet = sargs.Sargs.sargs_instance.ui.internet_state == sargsui.InternetState.CONNECTED
+        connected_ssid = sargs.Sargs.sargs_instance.get_connected_ssid()
 
         return {
             "co2": {
-                "ppm": sargs.co2_measurement,
+                "ppm": sargs.Sargs.sargs_instance.co2_measurement,
                 "status": "AIR_QUALITY_UNKNOWN"
             },
             "wifi": {
@@ -97,7 +100,7 @@ class Portal:
 
     @server.resource('/api/stations')
     async def stations(data):
-        access_points = sargs.get_wifi_ap_list()
+        access_points = sargs.Sargs.sargs_instance.get_wifi_ap_list()
 
         yield "["
         last_station = access_points[-1]
@@ -126,7 +129,7 @@ class Portal:
                        "error": '"password" must be of type "string"'
                    }, 400
 
-        sargs.update_wifi_settings(data.get('ssid'), data.get('password'))
+        sargs.Sargs.sargs_instance.update_wifi_settings(data.get('ssid'), data.get('password'))
 
     async def serveStaticFile(request, response):
         path = request.path.decode()
@@ -139,7 +142,7 @@ class Portal:
             content_type = 'text/css'
         if path.endswith('.svg'):
             content_type = 'image/svg+xml'
-        await response.send_file("static" + path + ".gz", content_type=content_type + "; charset=UTF-8",
+        await response.send_file(runtime_dir + "/static" + path + ".gz", content_type=content_type + "; charset=UTF-8",
                                  content_encoding="gzip")
 
     def setup(self):
@@ -148,9 +151,9 @@ class Portal:
 
 
 def add_static_routes(portal, dir="static"):
-    for record in os.listdir(dir):
+    for record in os.listdir(runtime_dir + "/" + dir):
         try:
-            os.listdir(dir + "/" + record)
+            os.listdir(runtime_dir + "/" + dir + "/" + record)
             add_static_routes(portal, dir + "/" + record)
             continue
         except:
