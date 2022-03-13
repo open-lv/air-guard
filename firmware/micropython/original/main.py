@@ -63,7 +63,7 @@ async def setup():
     log.info("Animating Screen and LEDs")
     # Ekrāna pārbaude
     await sargs.draw_centered_text(21, 'GAISA SARGS')
-    await sargs.draw_centered_text(32, 'VERSIJA ' + sargs.version[12:8])
+    await sargs.draw_centered_text(32, 'VERSIJA ' + sargs.version[:8])
     sargs.screen.flush()
 
     log.info("mem_free=%d" % gc.mem_free())
