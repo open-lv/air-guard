@@ -39,4 +39,4 @@ def remove_all_versions():
     for dir_name in os.listdir():
         if dir_name.startswith("micropython-"):
             print("Removing version directory: %s" % dir_name)
-            ota_utils.rmrf(dir_name)
+            rmrf(dir_name)
