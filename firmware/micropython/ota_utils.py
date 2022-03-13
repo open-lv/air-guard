@@ -33,3 +33,10 @@ def restore_original():
     with open("main.py", "w") as f:
         f.write("import original.main\n")
         f.write("original.main.run()\n")
+
+
+def remove_all_versions():
+    for dir_name in os.listdir():
+        if dir_name.startswith("micropython-"):
+            print("Removing version directory: %s" % dir_name)
+            ota_utils.rmrf(dir_name)

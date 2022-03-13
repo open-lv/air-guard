@@ -92,8 +92,7 @@ class OTA:
 
             release = self.select_release(name)
 
-            if name in os.listdir():
-                ota_utils.rmrf(name)
+            ota_utils.remove_all_versions()
 
             self.download_and_install(release["name"], release["asset_url"])
 
