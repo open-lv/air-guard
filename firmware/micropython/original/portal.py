@@ -89,6 +89,9 @@ class Portal:
         is_internet = sargs.Sargs.sargs_instance.ui.internet_state == sargsui.InternetState.CONNECTED
         connected_ssid = sargs.Sargs.sargs_instance.get_connected_ssid()
 
+        current_version = sargs.Sargs.sargs_instance.version
+        latest_version = sargs.Sargs.sargs_instance.latest_version
+
         return {
             "co2": {
                 "ppm": sargs.Sargs.sargs_instance.co2_measurement,
@@ -98,6 +101,10 @@ class Portal:
                 "connected": is_connected,
                 "internet": is_internet,
                 "ssid": connected_ssid,
+            },
+            "sargs": {
+                "currentVersion": current_version,
+                "latestVersion": latest_version
             }
         }
 
