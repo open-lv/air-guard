@@ -249,7 +249,8 @@ class SargsUI:
             # reset the next blink time while animation is in progress
             self.eye_next_blink_ticks_ms = ticks_ms() + 5000
 
-        if self.update_available and not self.update_prompt_shown:
+        is_ota_screen = self.current_screen == ScreenState.OTA_UPDATE_SCREEN
+        if self.update_available and not self.update_prompt_shown and not is_ota_screen:
             self.select_ota_screen()
 
         self.screen.drawFill(0)
@@ -586,6 +587,7 @@ class SargsUI:
         screen_timeout = (ticks_ms() - self.ota_screen_act_time) > 60 * 1000
         if not self.ota_update_requested and screen_timeout and not self.ota_screen_btn_handler.signal.value():
             self.log.info("returning to main screen due to timeout")
+            self.update_prompt_shown = True
             self.select_main_screen()
 
         if not self.ota_update_requested:
