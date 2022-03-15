@@ -1,11 +1,12 @@
 import logging
 import random
+import sys
 import time
 
 import uasyncio
 from utime import ticks_ms
-from utils import ButtonEventHandler, EyeAnimation, Buzzer
-import plot
+from .utils import ButtonEventHandler, EyeAnimation, Buzzer
+from . import plot
 
 # uPy doesn't seem to support enums, this is probably better than passing constants around
 
@@ -45,14 +46,6 @@ class SargsUIException(Exception):
 
 
 class SargsUI:
-    co2_measurement = None
-    temperature_measurement = None
-    co2_level = CO2Level.UNKNOWN
-    wifi_state = WiFiState.UNCONFIGURED
-    internet_state = InternetState.DISCONNECTED
-    current_screen = ScreenState.INIT_SCREEN
-    calibration_requested = False
-    display_ip_address = None
     WIFI_STATE_DESC = {
         WiFiState.UNCONFIGURED: "nav konf.",
         WiFiState.ACCESS_POINT: "piekl. p.",
@@ -70,23 +63,6 @@ class SargsUI:
         CO2Level.HIGH: "AARGH!",
         CO2Level.UNKNOWN: "",
     }
-    cal_sel_btn = 1
-    main_screen_btn_handler = None
-    cal_screen_btn_handler = None
-    cal_screen_negedge_count = 0
-    cal_screen_act_time = 0
-    buzzer = None
-    ldr = None
-    led_left_eye = None
-    led_right_eye = None
-    eye_animation = None
-    ldr_measurements = []
-    # hysteresis/debounce time in ms for med->high CO2 level (so that alert does not repeat if the
-    # CO2 measurement fluctuates around the limit
-    HIGH_CO2_ALERT_DEBOUNCE_MS = 5 * 60 * 1000
-    high_co2_alert_time = 0
-    prev_co2_level = CO2Level.LOW
-    frame_display_ms = 50
 
     HEARTBEAT_PERIODS_MS = {
         CO2Level.LOW: 500,
@@ -95,14 +71,73 @@ class SargsUI:
         CO2Level.HIGH: 300,
     }
 
-    plots = [
-        ("15 min", plot.CO2Plotter(15, 128, 48)),
-        ("1 h", plot.CO2Plotter(60, 128, 48)),
-        ("12 h", plot.CO2Plotter(60*12, 128, 48)),
-        ("24 h", plot.CO2Plotter(60*24, 128, 48))
-    ]
+    MAIN_SUBSCREENS = ["draw_main_large_heart_screen", "draw_main_small_heart_screen",
+                       "draw_15min_plot_screen", "draw_1h_plot_screen", "draw_12h_plot_screen", "draw_24h_plot_screen",
+                       "draw_network_screen", "draw_credits_screen",
+                       ]
 
     def __init__(self, screen, btn_signal, buzzer, ldr, left_eye, right_eye):
+
+        self.heart_frame = 0
+        self.heart_next_ticks_ms = 0
+        self.h_range = list(reversed(list(range(1, 5))))
+
+        self.main_selected_subscreen = 0
+        self.eye_next_blink_ticks_ms = 0
+        self.co2_measurement = None
+        self.temperature_measurement = None
+        self.co2_level = CO2Level.UNKNOWN
+        self.wifi_state = WiFiState.UNCONFIGURED
+        self.internet_state = InternetState.DISCONNECTED
+        self.current_screen = ScreenState.INIT_SCREEN
+        self.calibration_requested = False
+        self.display_ip_address = None
+        self.cal_sel_btn = 1
+        self.main_screen_btn_handler = None
+        self.cal_screen_btn_handler = None
+        self.cal_screen_negedge_count = 0
+        self.cal_screen_act_time = 0
+        self.buzzer = None
+        self.ldr = None
+        self.led_left_eye = None
+        self.led_right_eye = None
+        self.eye_animation = None
+        self.ldr_measurements = []
+        # hysteresis/debounce time in ms for med->high CO2 level (so that alert does not repeat if the
+        # CO2 measurement fluctuates around the limit
+        self.HIGH_CO2_ALERT_DEBOUNCE_MS = 5 * 60 * 1000
+        self.high_co2_alert_time = 0
+        self.prev_co2_level = CO2Level.LOW
+        self.frame_display_ms = 50
+
+        self.plots = [
+            ("15 min", plot.CO2Plotter(15, 128, 48)),
+            ("1 h", plot.CO2Plotter(60, 128, 48)),
+            ("12 h", plot.CO2Plotter(60 * 12, 128, 48)),
+            ("24 h", plot.CO2Plotter(60 * 24, 128, 48))
+        ]
+
+        self.init_screen_frame = 0
+
+        self.intro_screen_frame = 0
+
+        self.warmup_frame = 0
+
+        self.open_window_frame = 0
+        self.open_window_range = list(range(0, 27))
+
+        self.large_ppm_enter_ticks_ms = 0
+        self.large_ppm_ctr = 0
+
+        self.large_heart_frame = 0
+        self.large_heart_range = list(range(1, 5))
+        self.large_heart_next_ticks_ms = 0
+
+        self.credits_frame = 0
+        self.credits_frame_range = list(range(0, 25))
+        self.credits_y_pos = 0
+        self.credits_next_ticks_ms = 0
+
         self.log = logging.getLogger("screen")
         self.buzzer: Buzzer = buzzer
         self.screen = screen
@@ -116,6 +151,10 @@ class SargsUI:
 
         self.main_screen_btn_handler = ButtonEventHandler(self.btn_signal)
         self.cal_screen_btn_handler = ButtonEventHandler(self.btn_signal)
+
+        self.runtime_dir = __file__[:__file__.rindex("/")]
+
+        self.update_available = False
 
     def set_co2_measurement(self, m):
         self.co2_measurement = m
@@ -143,7 +182,7 @@ class SargsUI:
         self.frame_display_ms = 0
 
     def select_last_main_subscreen(self):
-        self.main_selected_subscreen = len(self.main_subscreens) - 2
+        self.main_selected_subscreen = len(self.MAIN_SUBSCREENS) - 2
 
     def select_cal_screen(self):
         self.cal_screen_negedge_count = 0
@@ -170,7 +209,6 @@ class SargsUI:
             choices = [EyeAnimation.LEFT_TO_RIGHT, EyeAnimation.RIGHT_TO_LEFT, EyeAnimation.BLINK]
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, random.choice(choices))
 
-    eye_next_blink_ticks_ms = 0
     async def update(self):
         self.process_ldr()
         await uasyncio.sleep_ms(0)
@@ -225,8 +263,6 @@ class SargsUI:
         if self.frame_display_ms > 0:
             await uasyncio.sleep_ms(self.frame_display_ms)
 
-    init_screen_frame = 0
-
     async def draw_init_screen(self):
         explosion_range = list(range(0, 11))
         fn = "/assets/splash/intro%d.png" % explosion_range[self.init_screen_frame]
@@ -238,8 +274,6 @@ class SargsUI:
             self.init_screen_frame = 0
             self.current_screen = ScreenState.INTRO_SCREEN
             self.eye_animation = EyeAnimation(self.led_left_eye, self.led_right_eye, [EyeAnimation.FADE_IN])
-
-    intro_screen_frame = 0
 
     async def draw_intro_screen(self):
         # don't do anything until eye animation finishes
@@ -253,12 +287,6 @@ class SargsUI:
             self.intro_screen_frame = 0
             self.current_screen = ScreenState.WARMUP_SCREEN
 
-    main_selected_subscreen = 0
-    main_subscreens = ["draw_main_large_heart_screen", "draw_main_small_heart_screen",
-                       "draw_15min_plot_screen", "draw_1h_plot_screen", "draw_12h_plot_screen", "draw_24h_plot_screen",
-                       "draw_network_screen", "draw_credits_screen",
-                       ]
-
     async def draw_main_screen(self):
         if self.main_screen_btn_handler.longpress():
             await self.buzzer.short_beep()
@@ -267,7 +295,7 @@ class SargsUI:
         elif self.main_screen_btn_handler.negedge():
             await self.buzzer.short_beep()
             self.main_selected_subscreen += 1
-            if self.main_selected_subscreen == len(self.main_subscreens):
+            if self.main_selected_subscreen == len(self.MAIN_SUBSCREENS):
                 self.main_selected_subscreen = 0
 
         if self.co2_level == CO2Level.MEDIUM or self.co2_level == CO2Level.HIGH:
@@ -283,13 +311,9 @@ class SargsUI:
         if self.wifi_state not in self.WIFI_STATE_DESC.keys():
             raise SargsUIException("Invalid WiFi state provided: %s" % str(self.wifi_state))
 
-        subscreen_fn = getattr(self, self.main_subscreens[self.main_selected_subscreen])
+        subscreen_fn = getattr(self, self.MAIN_SUBSCREENS[self.main_selected_subscreen])
         await subscreen_fn()
 
-
-    heart_frame = 0
-    heart_next_ticks_ms = 0
-    h_range = list(reversed(list(range(1, 5))))
 
     async def draw_main_small_heart_screen(self):
         # temperature with degree symbol
@@ -324,8 +348,6 @@ class SargsUI:
             else:
                 self.heart_next_ticks_ms = ticks_ms() + 50
 
-    warmup_frame = 0
-
     async def draw_warmup_screen(self):
         f_range = list(range(0, 9))
         fn = "/assets/beating-heart/ekg%d.png" % f_range[self.warmup_frame]
@@ -336,9 +358,6 @@ class SargsUI:
 
         if self.co2_measurement is not None:
             self.select_main_screen()
-
-    open_window_frame = 0
-    open_window_range = list(range(0, 27))
 
     async def draw_open_window_screen(self):
         fn = "/assets/open-window/open%d.png" % self.open_window_range[self.open_window_frame]
@@ -351,9 +370,6 @@ class SargsUI:
             self.open_window_frame = 0
             self.large_ppm_enter_ticks_ms = ticks_ms()
             self.frame_display_ms = 300
-
-    large_ppm_enter_ticks_ms = 0
-    large_ppm_ctr = 0
 
     async def draw_large_ppm_screen(self):
         ppm_t = str(self.co2_measurement)
@@ -444,9 +460,6 @@ class SargsUI:
 
 #     TODO - replace current main view with this, current main view as second / third smth view
 
-    large_heart_frame = 0
-    large_heart_range = list(range(1, 5))
-    large_heart_next_ticks_ms = 0
     async def draw_main_large_heart_screen(self):
         """"
         ###### VIEW1 ##### LARGE BEATING HEART + PPM
@@ -481,10 +494,6 @@ class SargsUI:
         self.screen.drawCircle(temp_x + temp_text_w + 2 , 1, 1, 0, 360, False, 0xFFFFFF)
         await uasyncio.sleep_ms(0)
 
-    credits_frame = 0
-    credits_frame_range = list(range(0, 25))
-    credits_y_pos = 0
-    credits_next_ticks_ms = 0
     async def draw_credits_screen(self):
         fn_templ = "/assets/credits/credits%d.png"
         fn = fn_templ % self.credits_frame_range[self.credits_frame]
@@ -509,7 +518,7 @@ class SargsUI:
         self.credits_next_ticks_ms = ticks_ms() + 5
 
     async def drawPng(self, x_pos, y_pos, fn):
-        self.screen.drawPng(x_pos, y_pos, fn)
+        self.screen.drawPng(x_pos, y_pos, self.runtime_dir + fn)
         await uasyncio.sleep_ms(0)
 
     async def draw_15min_plot_screen(self):

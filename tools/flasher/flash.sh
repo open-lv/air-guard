@@ -98,23 +98,12 @@ fi
 
 green "Using firmware binary: $FIRMWARE_FILE_NAME"
 # Collect build
-[ ! -d "build" ] && mkdir build
-# -f to ignore empty build dir
-rm -rf build/*
-cp ../../firmware/micropython/*.py build/
-cp -r ../../firmware/micropython/assets/ build/assets/
-cp -r ../../firmware/micropython/static/ build/static/
-rm -r build/static/mock/
-sed -i'' -e "s:const mock = true;:const mock = false;:g" build/static/sargsAPI.js
-gzip -r build/static/*
+./build.sh "$(git describe)"
 
 if [ -f "../../firmware/micropython/config.json" ]; then
+  yellow "Using preconfigured \"config.json\""
   cp ../../firmware/micropython/config.json build/
 fi
-
-# create a version file
-AIRGUARD_VERSION=`git describe`
-echo "VERSION='$AIRGUARD_VERSION'" > build/airguardversion.py
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash

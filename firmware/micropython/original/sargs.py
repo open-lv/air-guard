@@ -1,18 +1,23 @@
 import binascii
+import gc
 import logging
 import machine
 import mhz19
 import mqtt
 import network
-import sargsui
+import http_utils
+import ota_utils
+from . import sargsui
+from . import portal
 import sys
 import time
 import uasyncio
+import urequests
 from machine import Pin, I2C, UART, ADC, reset
 from uasyncio import CancelledError
 from uasyncio import Task
 from umqtt.simple import MQTTException
-from utils import *
+from .utils import *
 from utime import ticks_ms
 import network_manager
 import config
@@ -33,6 +38,9 @@ EYE_BRIGHTNESS = 128
 
 
 class Sargs:
+    sargs_instance = None
+
+    UPDATE_CHECK_PERIOD = 1000 * 60 * 60  # once an hour
     INTERNET_CONNECTION_TIMEOUT = 10
 
     led_red = LEDPWMSignal(Pin(33, Pin.OUT), on_duty=HAND_BRIGHTNESS)
@@ -77,8 +85,12 @@ class Sargs:
 
         # flash.sh/release process stores version in airguardversion.py file
         try:
-            import airguardversion
+            from . import airguardversion
             self.version = airguardversion.VERSION
+            if self.version.startswith('micropython-'):
+                self.version = self.version[12:]
+            self.latest_version = self.version
+            self.log.info("Airguard version: %s" % self.version)
         except ImportError:
             pass
 
@@ -231,8 +243,55 @@ class Sargs:
 
         return stations
 
+    def update_to_latest_version(self):
+        if self.latest_version == self.version:
+            self.log.error("Already at latest version: %s" % self.version)
+            return
+
+        self.prepare_ota(self.latest_version)
+
+    def prepare_ota(self, version_name):
+        self.log.info("Written new main.py for OTA")
+        with open("main.py") as f:
+            f.write("""
+
+import ota
+ota = ota.OTA()
+ota.perform_update("%s")
+
+""" % version_name)
+
+        self.log.info("OTA information saved, restarting...")
+        machine.reset()
+
+    async def get_latest_version(self):
+        reader = None
+        try:
+            # this method is blocking due to usocket.getaddrinfo
+            # that resolved DNS name
+            reader = http_utils.open_url("https://gaisasargs.lv/latest_release")
+            await uasyncio.sleep_ms(0)
+            line = reader.read(24).splitlines()[0]
+            reader.close()
+            await uasyncio.sleep_ms(0)
+
+            latest_version = line.decode('latin1').rstrip()
+
+            if not latest_version.startswith("micropython-"):
+                raise Exception("Invalid version response: %s" % latest_version)
+
+            return latest_version[12:]
+        except Exception as e:
+            self.log.exc(e, "Error while checking \"https://gaisasargs.lv/latest_release\" update")
+        finally:
+            if reader:
+                reader.close()
+
+        return None
+
     async def _check_internet(self):
         self.log.info("Internet connectivity checker started")
+        last_version_check_time = -self.UPDATE_CHECK_PERIOD
 
         while True:
             try:
@@ -240,6 +299,25 @@ class Sargs:
                                                          self.INTERNET_CONNECTION_TIMEOUT)
                 await writer.aclose()
                 self.ui.internet_state = sargsui.InternetState.CONNECTED
+
+                if (time.ticks_ms() - last_version_check_time) > self.UPDATE_CHECK_PERIOD:
+                    last_version_check_time = time.ticks_ms()
+                    latest_version = await self.get_latest_version()
+
+                    if latest_version:
+                        update_available = latest_version != self.version
+
+                        self.ui.update_available = update_available
+                        self.latest_version = latest_version
+                        last_version_check_time = time.ticks_ms()
+
+                        if update_available:
+                            self.log.info("New update available!")
+                            self.log.info(
+                                "Current version: %s, latest version: %s" % (self.version, self.latest_version))
+                    else:
+                        self.log.info("Could not fetch update information")
+
                 await uasyncio.sleep(30)
             except CancelledError:
                 self.log.info("Internet connectivity checker cancelled")
@@ -271,7 +349,31 @@ class Sargs:
         self.ui.set_wifi_state(sargsui.WiFiState.ACCESS_POINT)
         self.ui.set_display_ip_address(self._ap_if.ifconfig()[0])
 
+    async def perform_co2_measurement(self):
+        # @TODO: Handle repeated hecksum errors here
+        if not self.user_main_loop_started:
+            # on startup, wait for up to 120s for a valid reading
+            self.user_main_loop_started = True
+            heating_start_time = time.ticks_ms()
+            while (time.ticks_ms() - heating_start_time) < 120 * 1000:
+                if await self.co2_sensor.get_co2_reading() is not None:
+                    break
+                await uasyncio.sleep(1)
+
+        # retry measurement up to three times, then give up and trigger error
+        measurement = None
+        for _ in range(3):
+            measurement = await self.co2_sensor.get_co2_reading()
+            if measurement is not None:
+                break
+            await uasyncio.sleep(1)
+
+        if measurement is None:
+            await self.handle_co2_sensor_fault()
+        return measurement
+
     async def run(self):
+        gc.collect()
         """
         This task is executed in the context of a thread that's separate from main.py.
         It should handle re-drawing screen, handling WiFi status polling, 
@@ -281,8 +383,8 @@ class Sargs:
             if not self.config.WIFI_SSID and not self.config.CAPTIVE_PORTAL_ENABLED:
                 self.log.warning("WIFI not enabled - no wifi configuration found and captive portal is disabled.")
             else:
-                import portal
-                self.network_manager = network_manager.NetworkManager(self.config.WIFI_SSID, self.config.WIFI_PASSWORD,
+                self.network_manager = network_manager.NetworkManager(self.config.WIFI_SSID,
+                                                                      self.config.WIFI_PASSWORD,
                                                                       captive_portal_enabled=self.config.CAPTIVE_PORTAL_ENABLED,
                                                                       captive_portal_ssid="GaisaSargs-%s" % self.machine_id_short,
                                                                       on_connected=self._on_network_manager_connected,
@@ -306,7 +408,7 @@ class Sargs:
             try:
                 while not self.exit_requested:
                     await self.run_screen()
-                    await uasyncio.sleep_ms(0) # not more than 60FPS
+                    await uasyncio.sleep_ms(0)  # not more than 60FPS
             except KeyboardInterrupt as e:
                 self.log.info("KeyboardInterrupt, exiting Sargs thread")
                 self.exit_requested = True
@@ -314,33 +416,10 @@ class Sargs:
             except Exception as e:
                 self.log.error("exception in main thread")
                 self.log.error(e)
-                import sys
                 sys.print_exception(e)
                 self.log.info("re-starting main thread")
 
 
-sargs = Sargs()
-
-
-async def perform_co2_measurement():
-    # @TODO: Handle repeated hecksum errors here
-    if not sargs.user_main_loop_started:
-        # on startup, wait for up to 120s for a valid reading
-        sargs.user_main_loop_started = True
-        heating_start_time = time.ticks_ms()
-        while (time.ticks_ms() - heating_start_time) < 120 * 1000:
-            if await sargs.co2_sensor.get_co2_reading() is not None:
-                break
-            await uasyncio.sleep(1)
-
-    # retry measurement up to three times, then give up and trigger error
-    measurement = None
-    for _ in range(3):
-        measurement = await sargs.co2_sensor.get_co2_reading()
-        if measurement is not None:
-            break
-        await uasyncio.sleep(1)
-
-    if measurement is None:
-        await sargs.handle_co2_sensor_fault()
-    return measurement
+def setup():
+    Sargs.sargs_instance = Sargs()
+    return Sargs.sargs_instance
