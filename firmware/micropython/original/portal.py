@@ -128,7 +128,7 @@ class Portal:
                        "error": '"version_name" must be of type "string"'
                    }, 400
         version_name = data.get('version_name')
-        if not re.match("^micropython-[0-9]\.[0-9]+\.[0-9]+$", version_name):
+        if not re.match("^[0-9]\.[0-9]+\.[0-9]+$", version_name):
             return {
                        "error": 'Invalid "version_name" supplied'
                    }, 400

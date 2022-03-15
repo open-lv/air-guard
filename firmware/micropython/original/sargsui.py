@@ -154,6 +154,8 @@ class SargsUI:
 
         self.runtime_dir = __file__[:__file__.rindex("/")]
 
+        self.update_available = False
+
     def set_co2_measurement(self, m):
         self.co2_measurement = m
         for p in self.plots:

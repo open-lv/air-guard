@@ -5,11 +5,13 @@ import machine
 import mhz19
 import mqtt
 import network
+import ota_utils
 from . import sargsui
 from . import portal
 import sys
 import time
 import uasyncio
+import urequests
 from machine import Pin, I2C, UART, ADC, reset
 from uasyncio import CancelledError
 from uasyncio import Task
@@ -37,6 +39,7 @@ EYE_BRIGHTNESS = 128
 class Sargs:
     sargs_instance = None
 
+    UPDATE_CHECK_PERIOD = 1000 * 60 * 60 # once an hour
     INTERNET_CONNECTION_TIMEOUT = 10
 
     led_red = LEDPWMSignal(Pin(33, Pin.OUT), on_duty=HAND_BRIGHTNESS)
@@ -82,7 +85,10 @@ class Sargs:
         # flash.sh/release process stores version in airguardversion.py file
         try:
             from . import airguardversion
-            self.version = airguardversion.VERSION[12:]
+            self.version = airguardversion.VERSION
+            if self.version.startswith('micropython-'):
+                self.version = self.version[12:]
+            self.latest_version = self.version
             self.log.info("Airguard version: %s" % self.version)
         except ImportError:
             pass
@@ -236,6 +242,13 @@ class Sargs:
 
         return stations
 
+    def update_to_latest_version(self):
+        if self.latest_version == self.version:
+            self.log.error("Already at latest version: %s" % self.version)
+            return
+
+        self.prepare_ota(self.latest_version)
+
     def prepare_ota(self, version_name):
         self.log.info("Written new main.py for OTA")
         with open("main.py") as f:
@@ -252,6 +265,7 @@ ota.perform_update("%s")
 
     async def _check_internet(self):
         self.log.info("Internet connectivity checker started")
+        last_version_check_time = -self.UPDATE_CHECK_PERIOD
 
         while True:
             try:
@@ -259,6 +273,24 @@ ota.perform_update("%s")
                                                          self.INTERNET_CONNECTION_TIMEOUT)
                 await writer.aclose()
                 self.ui.internet_state = sargsui.InternetState.CONNECTED
+
+                if (time.ticks_ms() - last_version_check_time) > self.UPDATE_CHECK_PERIOD:
+                    latest_version = await ota_utils.check_update()
+
+                    if latest_version:
+                        update_available = latest_version != self.version
+
+                        self.ui.update_available = update_available
+                        self.latest_version = latest_version
+                        last_version_check_time = time.ticks_ms()
+
+                        if update_available:
+                            self.log.info("New update available!")
+                            self.log.info(
+                                "Current version: %s, latest version: %s" % (self.version, self.latest_version))
+                    else:
+                        self.log.info("Could not fetch update information")
+
                 await uasyncio.sleep(30)
             except CancelledError:
                 self.log.info("Internet connectivity checker cancelled")
@@ -336,6 +368,7 @@ ota.perform_update("%s")
                 self.network_manager.start()
 
                 portal.setup()
+                ota_utils.start_gaisasargs_resolver()
         else:
             self.log.warning("WIFI not enabled")
 
@@ -359,6 +392,7 @@ ota.perform_update("%s")
                 self.log.error(e)
                 sys.print_exception(e)
                 self.log.info("re-starting main thread")
+
 
 def setup():
     Sargs.sargs_instance = Sargs()

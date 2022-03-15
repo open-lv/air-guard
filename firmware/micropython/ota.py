@@ -12,6 +12,7 @@ import utarfile
 import utime
 import machine
 import ota_utils
+import http_utils
 
 
 class NotFoundError(Exception):
@@ -112,7 +113,7 @@ class OTA:
             machine.reset()
 
     def get_releases(self):
-        releases = ujson.load(self.url_open("https://api.github.com/repos/open-lv/air-guard/releases"))
+        releases = ujson.load(http_utils.open_url("https://api.github.com/repos/open-lv/air-guard/releases"))
         micropython_releases = []
         for release in releases:
             if not release["tag_name"].startswith("micropython-"):
@@ -126,13 +127,14 @@ class OTA:
         return micropython_releases
 
     def select_release(self, name):
+        full_version_name = "micropython-" + name
         for release in self.get_releases():
-            if release["name"] == name:
+            if release["name"] == full_version_name:
                 return release
         raise Exception('Error retrieving release "%s"' % name)
 
     def download_and_install(self, name, tar_url):
-        f1 = self.url_open(tar_url)
+        f1 = http_utils.open_url(tar_url)
         try:
             f2 = utarfile.TarFile(fileobj=f1)
             self.install_tar(f2, name + "/")
@@ -186,67 +188,6 @@ class OTA:
             raise exc
         sys.exit(1)
 
-    def url_open(self, url, redirect_tries_left=1):
-
-        if self.debug:
-            self._log(url)
-
-        proto, _, host, urlpath = url.split("/", 3)
-        try:
-            port = 443
-            if ":" in host:
-                host, port = host.split(":")
-                port = int(port)
-            ai = usocket.getaddrinfo(host, port, 0, usocket.SOCK_STREAM)
-        except OSError as e:
-            self.fatal("Unable to resolve %s (no Internet?)" % host, e)
-        # print("Address infos:", ai)
-        ai = ai[0]
-
-        s = usocket.socket(ai[0], ai[1], ai[2])
-        try:
-            # print("Connect address:", addr)
-            s.connect(ai[-1])
-
-            if proto == "https:":
-                s = ussl.wrap_socket(s, server_hostname=host)
-                if self.warn_ussl:
-                    self._log("Warning: %s SSL certificate is not validated" % host)
-                    warn_ussl = False
-
-            # MicroPython rawsocket module supports file interface directly
-            s.write("GET /%s HTTP/1.0\r\nHost: %s:%s\r\nUser-Agent: open-lv/air-guard\r\n\r\n" % (urlpath, host, port))
-            l = s.readline()
-            protover, status, msg = l.split(None, 2)
-            if status.startswith(b"3"):
-                if redirect_tries_left <= 0:
-                    raise Exception("Too many redirects")
-                redirect_tries_left -= 1
-                self._log("Redirect found")
-                while True:
-                    l = s.readline()
-                    if not l:
-                        raise ValueError("Unexpected EOF in finding Location")
-                    if l.startswith(b"Location:") or l.startswith(b"location:"):
-                        s.close()
-                        return self.url_open(l[10:].decode("ascii").rstrip(), redirect_tries_left)
-
-            if status != b"200":
-                if status == b"404":
-                    raise NotFoundError("404 not found")
-                raise ValueError(status)
-            while 1:
-                l = s.readline()
-                if not l:
-                    raise ValueError("Unexpected EOF in HTTP headers")
-                if l == b"\r\n":
-                    break
-        except Exception as e:
-            s.close()
-            raise e
-
-        return s
-
     def _log(self, message):
         message = '{0: > 6}: {1}'.format((utime.ticks_ms() - self.ota_started_time), message)
         print(message)
@@ -261,3 +202,4 @@ class OTA:
     def clear_log_file(self):
         with open("_ota_logs", "w") as f:
             pass
+
