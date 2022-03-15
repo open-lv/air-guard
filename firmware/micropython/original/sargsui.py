@@ -38,7 +38,8 @@ class ScreenState:
     OPEN_WINDOW_SCREEN = 5
     LARGE_PPM_SCREEN = 6
     PLOT_SCREEN = 7
-    SCREEN_END = 8
+    OTA_UPDATE_SCREEN = 8
+    SCREEN_END = 9
 
 
 class SargsUIException(Exception):
@@ -91,12 +92,18 @@ class SargsUI:
         self.internet_state = InternetState.DISCONNECTED
         self.current_screen = ScreenState.INIT_SCREEN
         self.calibration_requested = False
+        self.ota_update_requested = False
         self.display_ip_address = None
         self.cal_sel_btn = 1
+        self.ota_sel_btn = 1
         self.main_screen_btn_handler = None
         self.cal_screen_btn_handler = None
+        self.ota_screen_btn_handler = None
         self.cal_screen_negedge_count = 0
+        self.ota_screen_negedge_count = 0
         self.cal_screen_act_time = 0
+        self.ota_screen_act_time = 0
+
         self.buzzer = None
         self.ldr = None
         self.led_left_eye = None
@@ -151,10 +158,13 @@ class SargsUI:
 
         self.main_screen_btn_handler = ButtonEventHandler(self.btn_signal)
         self.cal_screen_btn_handler = ButtonEventHandler(self.btn_signal)
+        self.ota_screen_btn_handler = ButtonEventHandler(self.btn_signal)
 
         self.runtime_dir = __file__[:__file__.rindex("/")]
 
         self.update_available = False
+        self.update_prompt_shown = False
+        self.latest_version = None
 
     def set_co2_measurement(self, m):
         self.co2_measurement = m
@@ -188,6 +198,10 @@ class SargsUI:
         self.cal_screen_negedge_count = 0
         self.cal_screen_act_time = ticks_ms()
         self.current_screen = ScreenState.CALIBRATION_SCREEN
+
+    def select_ota_screen(self):
+        self.ota_screen_act_time = ticks_ms()
+        self.current_screen = ScreenState.OTA_UPDATE_SCREEN
 
     def process_ldr(self):
         # invert the analog value so that higher values mean more brightness
@@ -234,8 +248,13 @@ class SargsUI:
         else:
             # reset the next blink time while animation is in progress
             self.eye_next_blink_ticks_ms = ticks_ms() + 5000
+
+        if self.update_available and not self.update_prompt_shown:
+            self.select_ota_screen()
+
         self.screen.drawFill(0)
         await uasyncio.sleep_ms(0)
+
         screen_fn_map = {
             ScreenState.INIT_SCREEN: self.draw_init_screen,
             ScreenState.MAIN_SCREEN: self.draw_main_screen,
@@ -245,6 +264,7 @@ class SargsUI:
             ScreenState.OPEN_WINDOW_SCREEN: self.draw_open_window_screen,
             ScreenState.LARGE_PPM_SCREEN: self.draw_large_ppm_screen,
             ScreenState.PLOT_SCREEN: self.draw_plot_screen,
+            ScreenState.OTA_UPDATE_SCREEN: self.draw_ota_update_screen,
         }
         if self.current_screen in screen_fn_map.keys():
             await screen_fn_map[self.current_screen]()
@@ -451,11 +471,11 @@ class SargsUI:
             # sargs.py will return screen to main screen once it processes the calibration_requested flag
 
     async def draw_button(self, x, y, text, selected):
-        self.screen.drawText(x + 3, y + 3, text)
+        self.screen.drawText(x + 2, y + 2, text)
         await uasyncio.sleep_ms(0)
         if selected:
-            self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 7,
-                                 self.screen.getTextHeight(text) + 7, False, 0xffffff)
+            self.screen.drawRect(x, y, self.screen.getTextWidth(text) + 5,
+                                 self.screen.getTextHeight(text) + 5, False, 0xffffff)
             await uasyncio.sleep_ms(0)
 
 #     TODO - replace current main view with this, current main view as second / third smth view
@@ -560,3 +580,46 @@ class SargsUI:
 
         if self.display_ip_address:
             await self.draw_hcenter_text(50, "IP: " + self.display_ip_address)
+
+    async def draw_ota_update_screen(self):
+
+        screen_timeout = (ticks_ms() - self.ota_screen_act_time) > 60 * 1000
+        if not self.ota_update_requested and screen_timeout and not self.ota_screen_btn_handler.signal.value():
+            self.log.info("returning to main screen due to timeout")
+            self.select_main_screen()
+
+        if not self.ota_update_requested:
+            # select yes/no on button release
+            if self.ota_screen_btn_handler.negedge():
+                self.ota_screen_act_time = ticks_ms()
+                await self.buzzer.short_beep()
+                self.ota_sel_btn += 1
+                if self.ota_sel_btn == 3:
+                    self.ota_sel_btn = 1
+
+            if self.ota_screen_btn_handler.longpress():
+                self.update_prompt_shown = True
+                if self.ota_sel_btn == 2:
+                    self.log.info("user requested ota")
+                    self.ota_update_requested = True
+                    await self.buzzer.long_beep()
+                else:
+                    # no btn selected, go back to main screen
+                    await self.buzzer.short_beep()
+                    self.log.info("returning to main screen due to no button")
+                    self.select_main_screen()
+
+        if not self.ota_update_requested:
+            await self.draw_hcenter_text(0, "Pieejama jauna")
+            await self.draw_hcenter_text(14, "versija: " + self.latest_version)
+            await self.draw_hcenter_text(28, "Sakt atjauninasanu?")
+
+            sel_btn = self.ota_sel_btn  # 1 = no, 2 = yes
+            await self.draw_button(10, 45, "Ne", sel_btn == 1)
+            await self.draw_button(100, 45, "Ja", sel_btn == 2)
+        else:
+            self.log.info("ota initiated by user request")
+            await self.draw_hcenter_text(5, "Atjauninasana")
+            await self.draw_hcenter_text(25, "uzsakta!")
+            # sargs.py will return screen to main screen once it processes the ota_update_requested flag
+
