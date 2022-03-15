@@ -5,6 +5,7 @@ import machine
 import mhz19
 import mqtt
 import network
+import http_utils
 import ota_utils
 from . import sargsui
 from . import portal
@@ -39,7 +40,7 @@ EYE_BRIGHTNESS = 128
 class Sargs:
     sargs_instance = None
 
-    UPDATE_CHECK_PERIOD = 1000 * 60 * 60 # once an hour
+    UPDATE_CHECK_PERIOD = 1000 * 60 * 60  # once an hour
     INTERNET_CONNECTION_TIMEOUT = 10
 
     led_red = LEDPWMSignal(Pin(33, Pin.OUT), on_duty=HAND_BRIGHTNESS)
@@ -263,6 +264,31 @@ ota.perform_update("%s")
         self.log.info("OTA information saved, restarting...")
         machine.reset()
 
+    async def get_latest_version(self):
+        reader = None
+        try:
+            # this method is blocking due to usocket.getaddrinfo
+            # that resolved DNS name
+            reader = http_utils.open_url("https://gaisasargs.lv/latest_release")
+            await uasyncio.sleep_ms(0)
+            line = reader.read(24).splitlines()[0]
+            reader.close()
+            await uasyncio.sleep_ms(0)
+
+            latest_version = line.decode('latin1').rstrip()
+
+            if not latest_version.startswith("micropython-"):
+                raise Exception("Invalid version response: %s" % latest_version)
+
+            return latest_version[12:]
+        except Exception as e:
+            self.log.exc(e, "Error while checking \"https://gaisasargs.lv/latest_release\" update")
+        finally:
+            if reader:
+                reader.close()
+
+        return None
+
     async def _check_internet(self):
         self.log.info("Internet connectivity checker started")
         last_version_check_time = -self.UPDATE_CHECK_PERIOD
@@ -275,7 +301,8 @@ ota.perform_update("%s")
                 self.ui.internet_state = sargsui.InternetState.CONNECTED
 
                 if (time.ticks_ms() - last_version_check_time) > self.UPDATE_CHECK_PERIOD:
-                    latest_version = await ota_utils.check_update()
+                    last_version_check_time = time.ticks_ms()
+                    latest_version = await self.get_latest_version()
 
                     if latest_version:
                         update_available = latest_version != self.version
@@ -368,7 +395,6 @@ ota.perform_update("%s")
                 self.network_manager.start()
 
                 portal.setup()
-                ota_utils.start_gaisasargs_resolver()
         else:
             self.log.warning("WIFI not enabled")
 

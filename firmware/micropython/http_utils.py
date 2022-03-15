@@ -5,16 +5,14 @@ import logging
 log = logging.getLogger("http_utils")
 
 
-def open_url(url, host=None, redirect_tries_left=1):
+def open_url(url, redirect_tries_left=1):
     proto, _, hostname, urlpath = url.split("/", 3)
-    if not host:
-        host = hostname
     try:
         port = 443
         if ":" in hostname:
             hostname, port = hostname.split(":")
             port = int(port)
-        ai = usocket.getaddrinfo(host, port, 0, usocket.SOCK_STREAM)
+        ai = usocket.getaddrinfo(hostname, port, 0, usocket.SOCK_STREAM)
     except OSError as e:
         raise Exception("Unable to resolve %s (no Internet?): OSError \"%s\"" % (hostname, e.errno))
     ai = ai[0]
@@ -42,7 +40,7 @@ def open_url(url, host=None, redirect_tries_left=1):
                     raise ValueError("Unexpected EOF in finding Location")
                 if l.startswith(b"Location:") or l.startswith(b"location:"):
                     s.close()
-                    return open_url(l[10:].decode("ascii").rstrip(), None, redirect_tries_left)
+                    return open_url(l[10:].decode("ascii").rstrip(), redirect_tries_left)
 
         if status != b"200":
             if status == b"404":
