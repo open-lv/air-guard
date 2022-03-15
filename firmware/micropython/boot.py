@@ -43,7 +43,7 @@ if is_recover_old_version:
 
 if is_remove_other_versions:
     print("Removing other version")
-    ota_tools.remove_all_versions()
+    ota_utils.remove_all_versions()
 
 if is_full_reset:
     print("Removing all data")
