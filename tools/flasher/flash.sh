@@ -134,7 +134,7 @@ cyan_underlined "Registering device information (5/5)"
 DEVINFO=`mpremote connect "port:$ESPTOOL_PORT" run ./register-device.py | sed "s/\r$//"`
 echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.txt
 
-esptool.py run
+mpremote connect "port:$ESPTOOL_PORT" reset
 SCRIPT_END="$(date +%s)"
 
 echo
