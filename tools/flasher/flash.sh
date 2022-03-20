@@ -138,5 +138,10 @@ echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.txt
 mpremote connect "port:$ESPTOOL_PORT" exec "import machine; import _thread; _thread.start_new_thread(machine.reset, ())"
 SCRIPT_END="$(date +%s)"
 
+if [ -n "$PRINT_CMD" ]; then
+  yellow "Printing label: ${DEVINFO}"
+  ruby "${PRINT_CMD}" "${DEVINFO}"
+fi
+
 echo
 green "Device flashing is done. It took $((SCRIPT_END - SCRIPT_START)) seconds to finish."
