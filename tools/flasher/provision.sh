@@ -74,21 +74,17 @@ export ESPTOOL_PORT="$ESPTOOL_PORT"
 
 green "Selected device to flash: $(echo "$DEVICE_LIST" | grep "$ESPTOOL_PORT")"
 
-# Allow the firmware file path to be passed as the second argument to this script.
-FIRMWARE_FILE_NAME="${2:-$FIRMWARE_FILE_NAME}"
-if [ -z "$FIRMWARE_FILE_NAME" ]; then
-  yellow "Firmware filename not supplied, auto-detecting..."
-  RELEASES_JSON=$(curl -s https://api.github.com/repos/open-lv/micropython/releases/latest)
-  LATEST_VERSION="$(echo "$RELEASES_JSON" | jq ".tag_name" | cut -d '"' -f 2)"
-  LATEST_VERSION_DOWNLOAD_URL="$(echo "$RELEASES_JSON" | jq ".assets[] | select(.name==\"esp32-airguard-firmware.bin\") | .browser_download_url" | cut -d '"' -f 2)"
-  FIRMWARE_FILE_NAME="esp32-airguard-firmware-${LATEST_VERSION}.bin"
-fi
+FIRMWARE_FILE_NAME="${1:-$FIRMWARE_FILE_NAME}"
+SOFTWARE_FILE_NAME="${2:-$SOFTWARE_FILE_NAME}"
+PRINT_CMD_RB_FILE="${3:-$PRINT_CMD_RB_FILE}"
 
-# Download the firmware if not found.
-if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
-  yellow "Firmware binaries not found"
-  yellow "Downloading latest firmware ${LATEST_VERSION}: https://github.com/open-lv/micropython/releases/latest"
-  curl -L -s "$LATEST_VERSION_DOWNLOAD_URL" --output "$FIRMWARE_FILE_NAME"
+echo "FIRMWARE_FILE_NAME: ${FIRMWARE_FILE_NAME}"
+echo "SOFTWARE_FILE_NAME: ${SOFTWARE_FILE_NAME}"
+echo "PRINT_CMD_RB_FILE: ${PRINT_CMD_RB_FILE}"
+
+if [ ! -f "$SOFTWARE_FILE_NAME" ]; then
+  echo "MicroPython software file $SOFTWARE_FILE_NAME not found at the current directory $PWD."
+  exit 1
 fi
 
 if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
@@ -96,14 +92,19 @@ if [ ! -f "$FIRMWARE_FILE_NAME" ]; then
   exit 1
 fi
 
-green "Using firmware binary: $FIRMWARE_FILE_NAME"
-# Collect build
-./build.sh "$(git describe)"
-
-if [ -f "../../firmware/micropython/config.json" ]; then
-  yellow "Using preconfigured \"config.json\""
-  cp ../../firmware/micropython/config.json build/
+if [ ! -f "$PRINT_CMD_RB_FILE" ]; then
+  echo "Ruby label printer CMD file not found"
+  exit 1
 fi
+
+DEST_DIR=$(basename -s ".tar" "${SOFTWARE_FILE_NAME}")
+
+rm -rf "${DEST_DIR}"
+mkdir -p "${DEST_DIR}"
+
+tar xf "${SOFTWARE_FILE_NAME}" -C "${DEST_DIR}"
+
+green "Using firmware binary: $FIRMWARE_FILE_NAME"
 
 cyan_underlined "Erasing ESP32 flash (1/5)"
 esptool.py --chip esp32 erase_flash
@@ -124,7 +125,7 @@ while true; do
 done
 
 cyan_underlined "Copying scripts to device (4/5)"
-pushd build
+pushd "${DEST_DIR}"
 mpremote connect "port:$ESPTOOL_PORT" cp -r . :
 popd
 
@@ -132,11 +133,14 @@ popd
 cyan_underlined "Registering device information (5/5)"
 # carriage return needs to be trimmed
 DEVINFO=`mpremote connect "port:$ESPTOOL_PORT" run ./register-device.py | sed "s/\r$//"`
-echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.txt
+echo "$DEVINFO,$FIRMWARE_FILE_NAME,$AIRGUARD_VERSION" >> devices-flashed.provision.txt
 
 # run reset in separate thread to allow mpremote detach from REPL
 mpremote connect "port:$ESPTOOL_PORT" exec "import machine; import _thread; _thread.start_new_thread(machine.reset, ())"
 SCRIPT_END="$(date +%s)"
+
+yellow "Printing label: ${DEVINFO}"
+ruby "${PRINT_CMD_RB_FILE}" "${DEVINFO}"
 
 echo
 green "Device flashing is done. It took $((SCRIPT_END - SCRIPT_START)) seconds to finish."
