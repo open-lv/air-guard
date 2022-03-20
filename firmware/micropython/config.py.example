@@ -1,7 +1,0 @@
-# To enable WiFi connection, fill in the WiFi network details below
-WIFI_ENABLED = True
-WIFI_SSID = ""
-WIFI_PASSWORD = ""
-
-# To enable Captive portal
-CAPTIVE_PORTAL_ENABLED = True

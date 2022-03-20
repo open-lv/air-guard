@@ -106,17 +106,17 @@ class CO2Plotter:
 
         min_t = "%d ppm" % min_val
         screen.drawText(0, self.plot_h + 2, min_t)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         max_t = "%d ppm" % max_val
         screen.drawText(self.plot_w - screen.getTextWidth(max_t), 0, max_t)
-        await uasyncio.sleep_ms(1)
+        await uasyncio.sleep_ms(0)
         prev_y = None
         for i in range(len(self.data_buf)):
             v = self.data_buf[i]
             if v > 0:
                 y = start_y + self.plot_h - int(((v - min_val) / range_val * self.plot_h))
                 screen.drawPixel(i, y, 0xffffff)
-                await uasyncio.sleep_ms(1)
+                await uasyncio.sleep_ms(0)
                 if prev_y is not None and abs(prev_y - y) > 1:
                     # fill in the y to connect the dots
                     for ny in range(min(prev_y, y), max(prev_y, y)):

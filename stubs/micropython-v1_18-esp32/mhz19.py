@@ -1,4 +1,5 @@
 import logging
+import uasyncio
 import ubinascii
 import utime
 
@@ -80,26 +81,28 @@ class MHZ19:
 
     def __init__(self, uart):
         self.uart = uart
+        self.swriter = uasyncio.StreamWriter(self.uart, {})
+        self.sreader = uasyncio.StreamReader(self.uart)
         self.log = logging.getLogger("mhz19")
         self.init_time = utime.ticks_ms()
         self.log.info("initialized")
 
-    def send_cmd(self, cmd, payload=None):
+    async def send_cmd(self, cmd, payload=None):
         c = MHZ19Cmd(cmd, payload)
         c.pack()
         self.log.debug("Writing cmd: %s" % ubinascii.hexlify(c.body, " "))
-        self.uart.write(c.body)
-        resp = self.uart.read(9)
+        await self.swriter.awrite(c.body)
+        resp = await self.sreader.read(9)
         if resp:
             c.unpack(resp)
             self.log.debug("Received cmd: %s" % ubinascii.hexlify(c.body, " "))
 
             return c
 
-    def verify(self):
+    async def verify(self):
         """Verifies connection to sensor, logs firmware version"""
 
-        resp = self.send_cmd(self.CMD_GET_FW_VERSION)
+        resp = await self.send_cmd(self.CMD_GET_FW_VERSION)
         if resp:
             self.log.info("MHZ19 detected")
             self.log.info("FW version: %d%d.%d%d" % tuple(resp.payload[:4]))
@@ -108,8 +111,8 @@ class MHZ19:
             self.log.error("could not read fw version")
             return False
 
-    def get_co2_reading(self):
-        resp = self.send_cmd(self.CMD_GET_READING)
+    async def get_co2_reading(self):
+        resp = await self.send_cmd(self.CMD_GET_READING)
         if resp:
             # decode the reading
             # payload format: HH LL TT SS U1 U2
@@ -147,12 +150,12 @@ class MHZ19:
         else:
             return None
 
-    def set_abc_state(self, abc_state):
+    async def set_abc_state(self, abc_state):
         """Turns the automatic baseline calibration on/off"""
         payload = bytearray([0] * 5)
         if abc_state:
             payload[0] = 0xA0
-        resp = self.send_cmd(self.CMD_SET_ABC_STATE, payload)
+        resp = await self.send_cmd(self.CMD_SET_ABC_STATE, payload)
         if resp and resp.payload[0] != 0x1:
             self.log.error("failed to set ABC state to %d" % abc_state)
             return False

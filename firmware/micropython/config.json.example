@@ -1,0 +1,6 @@
+{
+  "wifiEnabled": true,
+  "wifiSsid": null,
+  "wifiPassword": null,
+  "captivePortalEnabled": true
+}

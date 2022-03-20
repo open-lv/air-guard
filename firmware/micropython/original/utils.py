@@ -1,8 +1,10 @@
 import uasyncio
-from machine import Signal, PWM
+from machine import Signal, PWM, unique_id
 from utime import ticks_ms
 import logging
+import machine
 import math
+import random
 
 # For AirGuardIotMQTTClient
 from umqtt.simple import MQTTClient
@@ -54,33 +56,47 @@ class Buzzer(PWM):
 
     def __init__(self, pin):
         super().__init__(pin)
+        self.generate_personality_tones()
         self.init(freq=1000, duty=0)
+
+    def generate_personality_tones(self):
+        random.seed(int.from_bytes(machine.unique_id(), "little"))
+        self.startup_melody = self.generate_melody(length=5)
+        self.alarm_melody = self.generate_melody(length=7)
+        # short => has to be audible
+        self.calibrate_melody = self.generate_melody(length=3, ns=800)
+        self.button_melody = self.generate_melody(length=1, ns=800)
+
+    def generate_melody(self, length=5, ns=500, ne=1500, ds=60, de=90):
+        a = [random.randint(ns, ne) for i in range(length)]
+        b = [int(random.uniform(ds, de)) for i in range(length)]
+        s = list(zip(a, b))
+        logging.getLogger("buzzer").debug("Generated tones: "+str(s))
+        return s
+
+    async def playback_melody(self, melody, duty=800, mul=0.0015):
+        logging.getLogger("buzzer").debug("playing melody of "+str(melody))
+        self.duty(duty)
+        for freq, dur in melody:
+            self.freq(freq)
+            await uasyncio.sleep(dur*mul)
+        self.duty(0)
 
     async def startup_beep(self):
         logging.getLogger("buzzer").info("startup beep")
-        self.duty(512)
-        await uasyncio.sleep(0.5)
-        self.duty(0)
+        await self.playback_melody(self.startup_melody)
 
     async def short_beep(self):
         logging.getLogger("buzzer").info("short beep")
-        self.duty(512)
-        await uasyncio.sleep(0.1)
-        self.duty(0)
+        await self.playback_melody(self.button_melody)
 
     async def long_beep(self):
         logging.getLogger("buzzer").info("long beep")
-        self.duty(512)
-        await uasyncio.sleep(0.7)
-        self.duty(0)
+        await self.playback_melody(self.calibrate_melody)
 
     async def high_co2_level_alert(self):
         logging.getLogger("buzzer").info("high co2th level")
-        for i in range(3):
-            self.duty(512)
-            await uasyncio.sleep(1.5)
-            self.duty(0)
-            await uasyncio.sleep(0.5)
+        await self.playback_melody(self.alarm_melody)
 
 
 async def pagaidit(v):

@@ -1,2 +1,4 @@
-config.py
-.idea
+/config.json
+/.idea
+/_ota_logs
+/_ota_status

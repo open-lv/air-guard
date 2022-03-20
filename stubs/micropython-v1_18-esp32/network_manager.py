@@ -43,7 +43,7 @@ class NetworkManager:
 
         while True:
             try:
-                if self._sta_if.isconnected():
+                if connected_once and self._sta_if.isconnected():
                     self._log.debug("WIFI still connected")
                     await uasyncio.sleep(30)
                     continue
