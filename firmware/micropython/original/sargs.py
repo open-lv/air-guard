@@ -3,10 +3,10 @@ import gc
 import logging
 import machine
 import mhz19
-import mqtt
 import network
 import http_utils
 import ota_utils
+from . import mqtt_airguard
 from . import sargsui
 from . import portal
 import sys
@@ -193,11 +193,11 @@ class Sargs:
     def connect_mqtt(self):
         """" Tries to initialize mqtt connection if configured to do so. Should be called after wifi is connected """
         try:
-            if not AirGuardIotMQTTClient:
+            if not mqtt_airguard.AirGuardIotMQTTClient:
                 self.log.error("MQTT connection class AirGuardIotMQTTClient not implemented")
             else:
                 # TODO: Enable this only if users opt-in.
-                self.mqtt_client = AirGuardIotMQTTClient(self.machine_id, self.machine_id)
+                self.mqtt_client = mqtt_airguard.AirGuardIotMQTTClient(self.machine_id, self.machine_id)
                 self.log.info("mqtt initialized")
 
         except ImportError:
