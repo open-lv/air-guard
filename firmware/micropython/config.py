@@ -15,33 +15,12 @@ class SargsConfig:
     # To enable Captive portal
     CAPTIVE_PORTAL_ENABLED = True
 
-    # MQTT common configuration
-    MQTT_CLIENT_ID = ""
-    MQTT_USERNAME = MQTT_CLIENT_ID
-    MQTT_PASSWORD = ""
-
-    # interval between published messages, seconds
-    MQTT_PUBLISH_INTERVAL_S = 60
-
-    # Thingspeak channel id
-    MQTT_TS_CHANNEL = ""
-
-    # Select which MQTT implementation to use
-    # Currently implemented: ThingspeakMQTTClient, requires MQTT_TS_CHANNEL
-    MQTT_CLASS = "ThingspeakMQTTClient"
-
     _json_mapping = {
         # JSON field, Class attribute, type
         "WIFI_ENABLED": ("wifiEnabled", bool),
         "WIFI_SSID": ("wifiSsid", str),
         "WIFI_PASSWORD": ("wifiPassword", str),
         "CAPTIVE_PORTAL_ENABLED": ("captivePortalEnabled", bool),
-        "MQTT_CLIENT_ID": ("mqttClientId", str),
-        "MQTT_USERNAME": ("mqttUsername", str),
-        "MQTT_PASSWORD": ("mqttPassword", str),
-        "MQTT_PUBLISH_INTERVAL_S": ("mqttPublishIntervalS", int),
-        "MQTT_TS_CHANNEL": ("mqttTsChannel", str),
-        "MQTT_CLASS": ("mqttClass", str),
     }
 
     def __setattr__(self, name, value) -> None:

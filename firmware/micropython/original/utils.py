@@ -6,6 +6,9 @@ import machine
 import math
 import random
 
+# For AirGuardIotMQTTClient
+from umqtt.simple import MQTTClient
+
 
 class LEDSignal(Signal):
 
