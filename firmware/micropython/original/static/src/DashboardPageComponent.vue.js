@@ -42,7 +42,10 @@ export default {
     </div>
     <div class="col-9" v-if="!loading">
       <div class="content bg-light">
-        Saturs
+       Šis ir GAISA SARGA konfigurācijas panelis!<br>
+       Šeit vari savienot savu supervaroni ar internetu. Kāpēc to darīt? Jo tā varēsi saņemt atjauninājumus, jaunas funkcijas un lietot GAISA SARGA mākoni, 
+       kurā varēsi viegli redzēt vēsturiskos gaisa kvalitātes datus. Lai pievienotu savu GAISA SARGU internetam- spied uz "WiFi iestatījumi" un norādi sava
+       bezvadu interneta tīkla datus.
       </div>
     </div>
   </div> `,
