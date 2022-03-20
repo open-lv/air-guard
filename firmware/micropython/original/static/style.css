@@ -53,3 +53,21 @@
     line-height: 25px;
     font-size: 25px;
 }
+
+.version h2 {
+    vertical-align: middle;
+}
+.version h2 button {
+    margin-left: 50px;
+}
+.version h2 small {
+    vertical-align: middle;
+    font-size: 1rem;
+    color: var(--bs-gray-600);
+}
+.version.old-version h2 {
+    font-size: 1.5rem;
+}
+.version.old-version h2 small {
+    font-size: .5em;
+}

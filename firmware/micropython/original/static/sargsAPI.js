@@ -35,4 +35,10 @@ export default {
   submitStation: (ssid, password) => {
     submitData("api/stations/select", { ssid, password });
   },
+  updateVersion: (versionNumber) => {
+    submitData("/api/ota/prepare", { version_name: versionNumber });
+  },
+  fetchVersions: () => {
+    return fetch("https://api.github.com/repos/open-lv/air-guard/releases").then((res) => res.json());
+  },
 };

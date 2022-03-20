@@ -13,7 +13,7 @@ import utime
 import machine
 import ota_utils
 import http_utils
-
+import display
 
 class NotFoundError(Exception):
     pass
@@ -66,8 +66,20 @@ class OTA:
         sta_if.active(False)
         return False
 
+    def draw_hcenter_text(self, y, text):
+        x = (display.width() - display.getTextWidth(text)) // 2
+        display.drawText(x, y, text)
+
+    def display_update_info(self, name):
+        display.drawFill(0)
+        self.draw_hcenter_text(10, "Ielade")
+        self.draw_hcenter_text(25, "atjauninajumu...")
+        self.draw_hcenter_text(45, "versija: " + name)
+        display.flush()
+
     def perform_update(self, name):
         self.clear_log_file()
+        self.display_update_info(name)
         try:
             self.ota_started_time = utime.ticks_ms()
             if self.is_ota_in_progress():

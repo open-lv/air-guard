@@ -226,6 +226,11 @@ class Sargs:
             self.pin_co2_calibrate.value(1)
             self.ui.select_main_screen()
 
+        if self.ui.ota_update_requested:
+            self.log.info("starting ota...")
+            self.update_to_latest_version()
+
+
     async def draw_centered_text(self, y, text):
         """Draws a horizontally centered line of text at specified offset from top"""
         x = (self.screen.width() - self.screen.getTextWidth(text)) // 2
@@ -308,6 +313,7 @@ ota.perform_update("%s")
                         update_available = latest_version != self.version
 
                         self.ui.update_available = update_available
+                        self.ui.latest_version = latest_version
                         self.latest_version = latest_version
                         last_version_check_time = time.ticks_ms()
 
