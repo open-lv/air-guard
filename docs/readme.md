@@ -1,0 +1,1 @@
+Buklets jâdrukâ uz A4 lapas, no abâm pusçm. To pârloka uz pusçm un iegûst mini grâmatu, kas palîdz salikt GAISA SARGU.
